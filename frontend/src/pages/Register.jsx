@@ -56,7 +56,6 @@ export default function Register() {
             >
               <option value="user">👤 User</option>
               <option value="provider">🏢 Service Provider</option>
-              <option value="admin">⚙️ Admin</option>
             </select>
           </div>
 
