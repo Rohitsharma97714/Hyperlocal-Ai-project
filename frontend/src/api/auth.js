@@ -46,7 +46,6 @@ export const loginAdmin = (data) => axios.post(`${API_URL}/admin/login`, data);
 export const register = (role, data) => {
   if (role === 'user') return axios.post(`${API_URL}/register`, data);
   if (role === 'provider') return axios.post(`${API_URL}/provider/register`, data);
-  if (role === 'admin') return axios.post(`${API_URL}/admin/register`, data);
 };
 
 export const verifyOTP = (data) => axios.post(`${API_URL}/verify-otp`, data);

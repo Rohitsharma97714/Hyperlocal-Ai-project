@@ -1,14 +1,4 @@
-# TODO: Add Payment Status to User and Provider Dashboards
+# TODO: Remove Admin Register Functionality
 
-## Tasks
-- [ ] Update UserDashboard.jsx to display paymentStatus in booking list
-- [ ] Update ProviderDashboard.jsx to display paymentStatus in booking list
-
-## Details
-- Backend already includes paymentStatus in booking API responses
-- Frontend needs to render paymentStatus alongside booking status
-- Use appropriate styling/colors for payment status badges
-
-## Files to Edit
-- frontend/src/pages/UserDashboard.jsx
-- frontend/src/pages/ProviderDashboard.jsx
+- [x] Remove the admin register route from backend/src/routes/auth.js
+- [x] Remove admin case from register function in frontend/src/api/auth.js

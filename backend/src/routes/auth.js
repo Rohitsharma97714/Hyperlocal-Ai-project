@@ -67,7 +67,6 @@ const registerHandler = (model, roleName) => async (req, res) => {
 // Routes
 router.post('/register', registerHandler(User, 'User'));
 router.post('/provider/register', registerHandler(Provider, 'Provider'));
-router.post('/admin/register', registerHandler(Admin, 'Admin'));
 
 // ------------------ OTP Verification ------------------
 
