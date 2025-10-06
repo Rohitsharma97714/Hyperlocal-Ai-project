@@ -1,0 +1,9 @@
+- [x] Backend: Set server start time in server.js
+- [x] Backend: Include server start time in JWT payload during login
+- [x] Backend: Verify server start time in auth middleware
+- [x] Frontend: Modify BookingForm to check login and redirect if not
+- [x] Frontend: Update Services.jsx to pass user to BookingForm
+- [x] Frontend: Update ServiceSummary.jsx to pass user to BookingForm and improve review check
+- [ ] Test: Booking without login redirects to login
+- [ ] Test: Review without login redirects to login
+- [ ] Test: Server restart logs out users
