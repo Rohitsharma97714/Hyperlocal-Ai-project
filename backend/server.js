@@ -15,9 +15,7 @@ import providerRoutes from './src/routes/provider.js';
 import connectDB from './src/config/db.js';
 import errorHandler from './src/middleware/errorHandler.js';
 
-import path from 'path';
 import { fileURLToPath } from 'url';
-import fs from 'fs';
 
 // Load environment variables
 dotenv.config();
@@ -27,7 +25,6 @@ process.env.SERVER_START_TIME = Date.now();
 connectDB();
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const app = express();
 
@@ -65,20 +62,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/provider', providerRoutes);
 app.use('/api', protectedRoutes);
 
-// Serve frontend build (React) if build folder exists
-const frontendPath = path.join(__dirname, '../frontend/build');
-if (fs.existsSync(frontendPath)) {
-  app.use(express.static(frontendPath));
-
-  // Catch-all route to serve index.html for non-API routes
-  app.get('*', (req, res) => {
-    // If the request starts with /api, return 404
-    if (req.path.startsWith('/api')) {
-      return res.status(404).send('Not Found');
-    }
-    res.sendFile(path.join(frontendPath, 'index.html'));
-  });
-}
+// Note: Frontend is deployed separately on Vercel, so backend only serves API routes
 
 // Error handling
 app.use(errorHandler);
