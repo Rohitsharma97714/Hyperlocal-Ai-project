@@ -15,35 +15,31 @@ import providerRoutes from './src/routes/provider.js';
 import connectDB from './src/config/db.js';
 import errorHandler from './src/middleware/errorHandler.js';
 
-// Load environment variables
-dotenv.config();
-
-// Set server start time for session invalidation on restart
-process.env.SERVER_START_TIME = Date.now();
-
-// Connect to MongoDB
-connectDB();
-
 import path from 'path';
 import { fileURLToPath } from 'url';
+
+// Load environment variables
+dotenv.config();
+process.env.SERVER_START_TIME = Date.now();
+
+// MongoDB connection
+connectDB();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 
+// CORS middleware
 app.use(cors({
   origin: [process.env.FRONTEND_URL || "http://localhost:3000"],
   credentials: true
 }));
 
-// Serve frontend static files
-app.use(express.static(path.join(__dirname, '../frontend/dist')));
-
-// Middleware to parse JSON
+// Parse JSON
 app.use(express.json());
 
-// Session middleware with MongoDB store
+// Session middleware
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your-session-secret',
   resave: false,
@@ -56,11 +52,11 @@ app.use(session({
   }
 }));
 
-// Initialize Passport and session
+// Passport initialization
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Routes
+// API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/bookings', bookingRoutes);
@@ -68,14 +64,18 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/provider', providerRoutes);
 app.use('/api', protectedRoutes);
 
-// Catch-all to serve index.html for client-side routing support
+// Serve frontend build (React)
+const frontendPath = path.join(__dirname, '../frontend/build');
+app.use(express.static(frontendPath));
+
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
+  res.sendFile(path.join(frontendPath, 'index.html'));
 });
 
-// Error handler (must be last)
+// Error handling
 app.use(errorHandler);
 
+// Socket.IO setup
 const PORT = process.env.PORT || 5000;
 const server = http.createServer(app);
 const io = new SocketIOServer(server, {
@@ -94,7 +94,6 @@ io.on('connection', (socket) => {
   });
 });
 
-// Make io accessible to routes
 app.set('io', io);
 
 server.listen(PORT, () => {
