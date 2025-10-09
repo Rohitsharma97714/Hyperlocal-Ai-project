@@ -1,6 +1,5 @@
 import axios from 'axios';
-
-const API_BASE_URL = 'http://localhost:5000/api/admin';
+import API_BASE_URL from '../config/apiConfig.js';
 
 // Get pending providers
 export const getPendingProviders = async () => {
@@ -87,7 +86,7 @@ export const rejectProvider = async (providerId, adminNotes) => {
 // Approve a service
 export const approveService = async (serviceId, adminNotes) => {
   const token = localStorage.getItem('token');
-  const response = await axios.patch(`http://localhost:5000/api/services/${serviceId}/status`, { status: 'approved', adminNotes }, {
+  const response = await axios.patch(`${API_BASE_URL}/services/${serviceId}/status`, { status: 'approved', adminNotes }, {
     headers: { Authorization: `Bearer ${token}` }
   });
   return response.data;
@@ -96,7 +95,7 @@ export const approveService = async (serviceId, adminNotes) => {
 // Reject a service
 export const rejectService = async (serviceId, adminNotes) => {
   const token = localStorage.getItem('token');
-  const response = await axios.patch(`http://localhost:5000/api/services/${serviceId}/status`, { status: 'rejected', adminNotes }, {
+  const response = await axios.patch(`${API_BASE_URL}/services/${serviceId}/status`, { status: 'rejected', adminNotes }, {
     headers: { Authorization: `Bearer ${token}` }
   });
   return response.data;
@@ -105,7 +104,7 @@ export const rejectService = async (serviceId, adminNotes) => {
 // Approve a booking
 export const approveBooking = async (bookingId, notes) => {
   const token = localStorage.getItem('token');
-  const response = await axios.put(`http://localhost:5000/api/bookings/${bookingId}/status`, { status: 'approved', notes }, {
+  const response = await axios.put(`${API_BASE_URL}/bookings/${bookingId}/status`, { status: 'approved', notes }, {
     headers: { Authorization: `Bearer ${token}` }
   });
   return response.data;
@@ -115,7 +114,7 @@ export const approveBooking = async (bookingId, notes) => {
 export const rejectBooking = async (bookingId, notes) => {
   const token = localStorage.getItem('token');
   // Assuming backend API supports DELETE for booking rejection and deletion
-  const response = await axios.delete(`http://localhost:5000/api/bookings/${bookingId}`, {
+  const response = await axios.delete(`${API_BASE_URL}/bookings/${bookingId}`, {
     headers: { Authorization: `Bearer ${token}` },
     data: { notes }
   });

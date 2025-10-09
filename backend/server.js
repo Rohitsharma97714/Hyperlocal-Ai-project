@@ -32,7 +32,7 @@ const app = express();
 
 // CORS middleware
 app.use(cors({
-  origin: [process.env.FRONTEND_URL || "http://localhost:3000"],
+  origin: [process.env.FRONTEND_URL || "http://localhost:3000", "https://hyperlocal-ai-project.vercel.app"],
   credentials: true
 }));
 
@@ -64,13 +64,20 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/provider', providerRoutes);
 app.use('/api', protectedRoutes);
 
-// Serve frontend build (React)
-const frontendPath = path.join(__dirname, '../frontend/build');
-app.use(express.static(frontendPath));
+// Serve frontend build (React) only in production
+if (process.env.NODE_ENV === 'production') {
+  const frontendPath = path.join(__dirname, '../frontend/build');
+  app.use(express.static(frontendPath));
 
-app.get('*', (req, res) => {
-  res.sendFile(path.join(frontendPath, 'index.html'));
-});
+  // Catch-all route to serve index.html for non-API routes
+  app.get('*', (req, res) => {
+    // If the request starts with /api, skip to next middleware (404 or API handler)
+    if (req.path.startsWith('/api')) {
+      return res.status(404).send('Not Found');
+    }
+    res.sendFile(path.join(frontendPath, 'index.html'));
+  });
+}
 
 // Error handling
 app.use(errorHandler);
@@ -80,7 +87,7 @@ const PORT = process.env.PORT || 5000;
 const server = http.createServer(app);
 const io = new SocketIOServer(server, {
   cors: {
-    origin: [process.env.FRONTEND_URL || "http://localhost:3000"],
+    origin: [process.env.FRONTEND_URL || "http://localhost:3000", "https://hyperlocal-ai-project.vercel.app"],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true
   }

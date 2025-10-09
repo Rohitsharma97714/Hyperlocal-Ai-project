@@ -1,8 +1,7 @@
 // filepath: c:\Users\HP\OneDrive\Desktop\HyperLocal Ai\frontend\src\api\auth.js
 import axios from 'axios';
 
-const API_URL = 'http://localhost:5000/api/auth';
-const API_BASE_URL = 'http://localhost:5000/api';
+import API_BASE_URL from '../config/apiConfig.js';
 
 // Create axios instance with interceptors
 const api = axios.create({
@@ -39,16 +38,16 @@ api.interceptors.response.use(
   }
 );
 
-export const loginUser = (data) => axios.post(`${API_URL}/login`, data);
-export const loginProvider = (data) => axios.post(`${API_URL}/provider/login`, data);
-export const loginAdmin = (data) => axios.post(`${API_URL}/admin/login`, data);
+export const loginUser = (data) => axios.post(`${API_BASE_URL}/auth/login`, data);
+export const loginProvider = (data) => axios.post(`${API_BASE_URL}/auth/provider/login`, data);
+export const loginAdmin = (data) => axios.post(`${API_BASE_URL}/auth/admin/login`, data);
 
 export const register = (role, data) => {
-  if (role === 'user') return axios.post(`${API_URL}/register`, data);
-  if (role === 'provider') return axios.post(`${API_URL}/provider/register`, data);
+  if (role === 'user') return axios.post(`${API_BASE_URL}/auth/register`, data);
+  if (role === 'provider') return axios.post(`${API_BASE_URL}/auth/provider/register`, data);
 };
 
-export const verifyOTP = (data) => axios.post(`${API_URL}/verify-otp`, data);
+export const verifyOTP = (data) => axios.post(`${API_BASE_URL}/auth/verify-otp`, data);
 
 // Protected routes using the configured axios instance
 export const getServices = (providerId) => {
