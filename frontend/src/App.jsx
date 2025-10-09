@@ -6,7 +6,7 @@ import About from "./pages/About";
 import Contact from "./pages/Contact";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-import VerifyOtp from "./pages/VerifyOtp";
+import VerifyOtp from "./pages/verifyOtp";
 import UserDashboard from "./pages/UserDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import ProviderDashboard from "./pages/ProviderDashboard";
