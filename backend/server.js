@@ -17,6 +17,7 @@ import errorHandler from './src/middleware/errorHandler.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 
 // Load environment variables
 dotenv.config();
@@ -64,14 +65,14 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/provider', providerRoutes);
 app.use('/api', protectedRoutes);
 
-// Serve frontend build (React) only in production
-if (process.env.NODE_ENV === 'production') {
-  const frontendPath = path.join(__dirname, '../frontend/build');
+// Serve frontend build (React) if build folder exists
+const frontendPath = path.join(__dirname, '../frontend/build');
+if (fs.existsSync(frontendPath)) {
   app.use(express.static(frontendPath));
 
   // Catch-all route to serve index.html for non-API routes
   app.get('*', (req, res) => {
-    // If the request starts with /api, skip to next middleware (404 or API handler)
+    // If the request starts with /api, return 404
     if (req.path.startsWith('/api')) {
       return res.status(404).send('Not Found');
     }
