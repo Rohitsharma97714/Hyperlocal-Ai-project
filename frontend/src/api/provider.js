@@ -1,5 +1,6 @@
 import axios from 'axios';
-import API_BASE_URL from '../config/apiConfig.js';
+
+const API_URL = '/provider';
 
 // Get auth token from localStorage
 const getAuthToken = () => {
@@ -8,7 +9,7 @@ const getAuthToken = () => {
 
 // Create axios instance with default config
 const apiClient = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: '/api',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -46,7 +47,7 @@ apiClient.interceptors.response.use(
 
 export const getApprovalStatus = async () => {
   try {
-    const response = await apiClient.get('/provider/status');
+    const response = await apiClient.get(`${API_URL}/status`);
     return response;
   } catch (error) {
     console.error('[Provider API] Error fetching approval status:', error);
@@ -63,7 +64,7 @@ export const getApprovalStatus = async () => {
 
 export const getProfile = async () => {
   try {
-    const response = await apiClient.get('/provider/profile');
+    const response = await apiClient.get(`${API_URL}/profile`);
     return response;
   } catch (error) {
     console.error('[Provider API] Error fetching profile:', error);
@@ -80,7 +81,7 @@ export const getProfile = async () => {
 
 export const updateProfile = async (profileData) => {
   try {
-    const response = await apiClient.put('/provider/profile', profileData);
+    const response = await apiClient.put(`${API_URL}/profile`, profileData);
     return response;
   } catch (error) {
     console.error('[Provider API] Error updating profile:', error);

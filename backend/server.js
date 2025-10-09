@@ -15,6 +15,7 @@ import providerRoutes from './src/routes/provider.js';
 import connectDB from './src/config/db.js';
 import errorHandler from './src/middleware/errorHandler.js';
 
+import path from 'path';
 import { fileURLToPath } from 'url';
 
 // Load environment variables
@@ -25,12 +26,13 @@ process.env.SERVER_START_TIME = Date.now();
 connectDB();
 
 const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
 // CORS middleware
 app.use(cors({
-  origin: [process.env.FRONTEND_URL || "http://localhost:3000", "https://hyperlocal-ai-project.vercel.app"],
+  origin: [process.env.FRONTEND_URL || "http://localhost:3000"],
   credentials: true
 }));
 
@@ -62,7 +64,13 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/provider', providerRoutes);
 app.use('/api', protectedRoutes);
 
-// Note: Frontend is deployed separately on Vercel, so backend only serves API routes
+// Serve frontend build (React)
+const frontendPath = path.join(__dirname, '../frontend/build');
+app.use(express.static(frontendPath));
+
+app.get('*', (req, res) => {
+  res.sendFile(path.join(frontendPath, 'index.html'));
+});
 
 // Error handling
 app.use(errorHandler);
@@ -72,7 +80,7 @@ const PORT = process.env.PORT || 5000;
 const server = http.createServer(app);
 const io = new SocketIOServer(server, {
   cors: {
-    origin: [process.env.FRONTEND_URL || "http://localhost:3000", "https://hyperlocal-ai-project.vercel.app"],
+    origin: [process.env.FRONTEND_URL || "http://localhost:3000"],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true
   }
