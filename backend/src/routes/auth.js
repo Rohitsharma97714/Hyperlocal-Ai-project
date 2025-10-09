@@ -3,6 +3,8 @@ import express from 'express';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 import crypto from 'crypto';
+import passport from 'passport';
+import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import User from '../models/User.js';
 import Provider from '../models/Provider.js';
 import Admin from '../models/Admin.js';
@@ -11,6 +13,57 @@ import { protect } from '../middleware/auth.js';
 
 dotenv.config();
 const router = express.Router();
+
+// Passport serialization/deserialization
+passport.serializeUser((user, done) => {
+  done(null, user._id);
+});
+
+passport.deserializeUser(async (id, done) => {
+  try {
+    const user = await User.findById(id);
+    done(null, user);
+  } catch (error) {
+    done(error, null);
+  }
+});
+
+// Google OAuth Strategy
+passport.use(new GoogleStrategy({
+  clientID: process.env.GOOGLE_CLIENT_ID,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  callbackURL: `${process.env.BACKEND_URL}/api/auth/google/callback`
+}, async (accessToken, refreshToken, profile, done) => {
+  try {
+    const { name, email, picture } = profile._json;
+    let user = await User.findOne({ email });
+
+    if (user) {
+      // Update existing user info and ensure role is 'user'
+      user.name = name;
+      user.profilePicture = picture;
+      user.isGoogleUser = true;
+      user.role = 'user';
+      user.isApproved = true;
+      await user.save();
+    } else {
+      // Create new user
+      user = await User.create({
+        name,
+        email,
+        profilePicture: picture,
+        isGoogleUser: true,
+        role: 'user',
+        isApproved: true,
+        isVerified: true
+      });
+    }
+
+    return done(null, user);
+  } catch (error) {
+    return done(error, null);
+  }
+}));
 
 // ------------------ Registration Routes ------------------
 
@@ -293,6 +346,22 @@ router.put('/profile', protect, async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// ------------------ Google OAuth Routes ------------------
+
+router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+
+router.get('/google/callback', passport.authenticate('google', { failureRedirect: `${process.env.FRONTEND_URL}/login?error=Google authentication failed` }), async (req, res) => {
+  try {
+    const user = req.user;
+    const token = jwt.sign({ id: user._id, role: user.role, serverStartTime: parseInt(process.env.SERVER_START_TIME) }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    const encodedUser = encodeURIComponent(JSON.stringify({ id: user._id, name: user.name, email: user.email, role: user.role }));
+    res.redirect(`${process.env.FRONTEND_URL}/login?token=${token}&user=${encodedUser}`);
+  } catch (error) {
+    console.error(error);
+    res.redirect(`${process.env.FRONTEND_URL}/login?error=Internal server error`);
   }
 });
 

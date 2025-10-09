@@ -3,6 +3,9 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
+import session from 'express-session';
+import passport from 'passport';
+import MongoStore from 'connect-mongo';
 import authRoutes from './src/routes/auth.js';
 import protectedRoutes from './src/routes/protected.js';
 import serviceRoutes from './src/routes/service.js';
@@ -30,7 +33,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 
 app.use(cors({
-  origin: ["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"],
+  origin: [process.env.FRONTEND_URL || "http://localhost:3000"],
   credentials: true
 }));
 
@@ -39,6 +42,23 @@ app.use(express.static(path.join(__dirname, '../frontend/dist')));
 
 // Middleware to parse JSON
 app.use(express.json());
+
+// Session middleware with MongoDB store
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your-session-secret',
+  resave: false,
+  saveUninitialized: false,
+  store: MongoStore.create({ mongoUrl: process.env.MONGO_URI }),
+  cookie: {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+  }
+}));
+
+// Initialize Passport and session
+app.use(passport.initialize());
+app.use(passport.session());
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -60,7 +80,7 @@ const PORT = process.env.PORT || 5000;
 const server = http.createServer(app);
 const io = new SocketIOServer(server, {
   cors: {
-    origin: ["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"],
+    origin: [process.env.FRONTEND_URL || "http://localhost:3000"],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true
   }

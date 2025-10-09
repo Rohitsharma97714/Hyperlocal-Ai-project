@@ -1,16 +1,66 @@
 // pages/Login.jsx
-import React, { useState, useContext } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useContext, useEffect, useRef } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { loginUser, loginProvider, loginAdmin } from "../api/auth";
 import { AuthContext } from "../context/AuthContext";
+import GoogleRoleSelection from "../components/GoogleRoleSelection";
 
 const Login = () => {
   const [role, setRole] = useState("user"); // default role
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const hasProcessedGoogleLogin = useRef(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useContext(AuthContext);
+
+  useEffect(() => {
+    console.log('Login useEffect running, location.search:', location.search);
+    const params = new URLSearchParams(location.search);
+    const token = params.get("token");
+    const user = params.get("user");
+    const errorParam = params.get("error");
+
+    console.log('Parsed params:', { token: !!token, user: !!user, errorParam });
+
+    if (errorParam) {
+      setError(errorParam);
+      // Clean URL params
+      window.history.replaceState({}, document.title, location.pathname);
+      return;
+    }
+
+    if (!hasProcessedGoogleLogin.current && token && user) {
+      console.log('Processing Google login');
+      try {
+        const parsedUser = JSON.parse(decodeURIComponent(user));
+        console.log('Parsed user:', parsedUser);
+        login({
+          token,
+          role: parsedUser.role,
+          name: parsedUser.name,
+          email: parsedUser.email,
+          id: parsedUser.id,
+        });
+        hasProcessedGoogleLogin.current = true;
+        // Clean URL params
+        window.history.replaceState({}, document.title, location.pathname);
+
+        // Redirect based on role
+        if (parsedUser.role === "admin") {
+          navigate("/admin-dashboard");
+        } else if (parsedUser.role === "provider") {
+          navigate("/provider-dashboard");
+        } else {
+          navigate("/dashboard");
+        }
+      } catch (e) {
+        console.error('Error processing Google login:', e);
+        setError("Invalid login data");
+      }
+    }
+  }, [location.search, login, navigate]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -37,7 +87,7 @@ const Login = () => {
       } else if (role === "provider") {
         navigate("/provider-dashboard");
       } else {
-        navigate("/");
+        navigate("/dashboard");
       }
     } catch (err) {
       setError(err.response?.data?.message || "Login failed");
@@ -61,6 +111,9 @@ const Login = () => {
             {error}
           </div>
         )}
+
+        {/* Google Role Selection */}
+        <GoogleRoleSelection />
 
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Role Selection */}

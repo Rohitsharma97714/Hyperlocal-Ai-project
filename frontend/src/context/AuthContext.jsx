@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useCallback } from 'react';
 
 export const AuthContext = createContext();
 
@@ -59,7 +59,7 @@ export const AuthProvider = ({ children }) => {
     return () => clearInterval(interval);
   }, []);
 
-  const login = (userData) => {
+  const login = useCallback((userData) => {
     if (!userData) {
       // Handle logout case when userData is null
       logout();
@@ -71,18 +71,24 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('name', userData.name);
     localStorage.setItem('email', userData.email || '');
     localStorage.setItem('id', userData.id || '');
-    setUser(userData);
+    setUser({
+      token: userData.token,
+      role: userData.role,
+      name: userData.name,
+      email: userData.email || '',
+      id: userData.id || ''
+    });
     console.log('AuthContext: User state updated:', userData);
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     localStorage.removeItem('token');
     localStorage.removeItem('role');
     localStorage.removeItem('name');
     localStorage.removeItem('email');
     localStorage.removeItem('id');
     setUser(null);
-  };
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, login, logout, isLoading }}>

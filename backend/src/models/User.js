@@ -13,7 +13,7 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: true,
+    required: function() { return !this.isGoogleUser; },
     minlength: 8,
     match: [/^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[\W_]).{8,}$/, 'Password must include uppercase, lowercase, number, special character']
   },
@@ -21,7 +21,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     match: [/^[0-9]{10,12}$/, 'Phone must be 10-12 digits']
   },
-    // Example: User model
+  profilePicture: { type: String },
+  isGoogleUser: { type: Boolean, default: false },
+  role: { type: String, default: 'customer' },
+  isApproved: { type: Boolean, default: false },
   otp: Number,
   otpExpiry: Date,
   isVerified: { type: Boolean, default: false },
@@ -33,12 +36,14 @@ const userSchema = new mongoose.Schema({
 
 userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
+  if (this.isGoogleUser) return next();
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
   next();
 });
 
 userSchema.methods.matchPassword = async function(enteredPassword) {
+  if (this.isGoogleUser) return false;
   return await bcrypt.compare(enteredPassword, this.password);
 }
 
