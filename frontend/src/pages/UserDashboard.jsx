@@ -18,6 +18,9 @@ export default function UserDashboard() {
     phone: user?.phone || "",
   });
   const [reviewStates, setReviewStates] = useState({});
+  const [selectedCard, setSelectedCard] = useState(null);
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [activeSubTab, setActiveSubTab] = useState('all');
 
   const handleLogout = () => {
     logout();
@@ -105,6 +108,13 @@ export default function UserDashboard() {
   // Fix: Include bookings with status 'reviewed' as completed
   const completedBookings = bookings.filter(b => b.status === 'completed' || b.status === 'reviewed').length;
 
+  const bookingCounts = {
+    all: bookings.length,
+    pending: pendingBookings,
+    confirmed: confirmedBookings,
+    completed: completedBookings
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
       <div className="container mx-auto px-4 py-8">
@@ -170,60 +180,199 @@ export default function UserDashboard() {
 
         {/* Tab Content */}
         {activeTab === 'overview' && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
-              <div className="flex items-center">
-                <div className="p-3 bg-blue-100 rounded-lg">
-                  <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                  </svg>
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+              <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300 cursor-pointer" onClick={() => setSelectedCard('total')}>
+                <div className="flex items-center">
+                  <div className="p-3 bg-blue-100 rounded-lg">
+                    <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Total Bookings <span className="ml-2 bg-orange-600 text-white rounded-full px-2 py-1 text-xs font-medium">{totalBookings}</span></p>
+                    <p className="text-2xl font-bold text-gray-900">{totalBookings}</p>
+                  </div>
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Bookings</p>
-                  <p className="text-2xl font-bold text-gray-900">{totalBookings}</p>
+              </div>
+              <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300 cursor-pointer" onClick={() => setSelectedCard('pending')}>
+                <div className="flex items-center">
+                  <div className="p-3 bg-yellow-100 rounded-lg">
+                    <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Pending <span className="ml-2 bg-orange-600 text-white rounded-full px-2 py-1 text-xs font-medium">{pendingBookings}</span></p>
+                    <p className="text-2xl font-bold text-gray-900">{pendingBookings}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300 cursor-pointer" onClick={() => setSelectedCard('confirmed')}>
+                <div className="flex items-center">
+                  <div className="p-3 bg-green-100 rounded-lg">
+                    <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Confirmed <span className="ml-2 bg-orange-600 text-white rounded-full px-2 py-1 text-xs font-medium">{confirmedBookings}</span></p>
+                    <p className="text-2xl font-bold text-gray-900">{confirmedBookings}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300 cursor-pointer" onClick={() => setSelectedCard('completed')}>
+                <div className="flex items-center">
+                  <div className="p-3 bg-purple-100 rounded-lg">
+                    <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                    </svg>
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Completed <span className="ml-2 bg-orange-600 text-white rounded-full px-2 py-1 text-xs font-medium">{completedBookings}</span></p>
+                    <p className="text-2xl font-bold text-gray-900">{completedBookings}</p>
+                  </div>
                 </div>
               </div>
             </div>
-            <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
-              <div className="flex items-center">
-                <div className="p-3 bg-yellow-100 rounded-lg">
-                  <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+            {selectedCard && (
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xl font-semibold text-gray-800">
+                    {selectedCard === 'total' ? 'All Bookings' : selectedCard.charAt(0).toUpperCase() + selectedCard.slice(1) + ' Bookings'}
+                  </h3>
+                  <button onClick={() => setSelectedCard(null)} className="text-gray-500 hover:text-gray-700">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Pending</p>
-                  <p className="text-2xl font-bold text-gray-900">{pendingBookings}</p>
+                <div className="space-y-4">
+                  {bookings.filter(b => {
+                    if (selectedCard === 'total') return true;
+                    if (selectedCard === 'pending') return b.status === 'pending';
+                    if (selectedCard === 'confirmed') return b.status === 'confirmed';
+                    if (selectedCard === 'completed') return b.status === 'completed' || b.status === 'reviewed';
+                  }).map((booking) => {
+                    const reviewState = reviewStates[booking._id] || { rating: 0, comment: "", submitting: false, error: "" };
+                    const hasReviewed = booking.reviews && booking.reviews.some(r => r.user === user.id);
+
+                    const updateReviewState = (updates) => {
+                      setReviewStates(prev => ({
+                        ...prev,
+                        [booking._id]: { ...prev[booking._id], ...updates }
+                      }));
+                    };
+
+                    const handleReviewSubmit = async (e) => {
+                      e.preventDefault();
+                      if (reviewState.rating < 1 || reviewState.rating > 5) {
+                        updateReviewState({ error: "Please provide a rating between 1 and 5." });
+                        return;
+                      }
+                      if (!reviewState.comment.trim()) {
+                        updateReviewState({ error: "Please provide a comment." });
+                        return;
+                      }
+                      updateReviewState({ submitting: true, error: "" });
+                      try {
+                        await submitReview(booking._id, { rating: reviewState.rating, comment: reviewState.comment });
+                        toast.success("Review submitted successfully!");
+                        // Refresh bookings to show updated review status
+                        const response = await getUserBookings();
+                        if (Array.isArray(response.data)) {
+                          setBookings(response.data);
+                        }
+                        // Clear review state after successful submission
+                        updateReviewState({ rating: 0, comment: "", submitting: false, error: "" });
+                      } catch (error) {
+                        updateReviewState({ error: error.response?.data?.message || "Failed to submit review" });
+                      } finally {
+                        updateReviewState({ submitting: false });
+                      }
+                    };
+
+                    return (
+                      <div key={booking._id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all duration-200 hover:border-purple-300">
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-lg text-gray-800 mb-2">
+                              {booking.service?.name || 'Service'}
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600">
+                              <p><span className="font-medium">Date:</span> {new Date(booking.date).toLocaleDateString()}</p>
+                              <p><span className="font-medium">Time:</span> {booking.time}</p>
+                              <p><span className="font-medium">Location:</span> {booking.location || booking.service?.location}</p>
+                              {booking.price && <p><span className="font-medium">Price:</span> ${booking.price}</p>}
+                              <p><span className="font-medium">Provider:</span> {booking.provider?.name || 'N/A'}</p>
+                            </div>
+                            {booking.notes && (
+                              <p className="mt-2 text-sm text-gray-600">
+                                <span className="font-medium">Notes:</span> {booking.notes}
+                              </p>
+                            )}
+                            {booking.status === 'completed' && !hasReviewed && (
+                              <form onSubmit={handleReviewSubmit} className="mt-4 p-4 border border-gray-300 rounded-lg bg-gray-50">
+                                <h5 className="font-semibold mb-2">Leave a Review</h5>
+                                <label className="block mb-1 font-medium">Rating (1-5):</label>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max="5"
+                                  value={reviewState.rating}
+                                  onChange={(e) => updateReviewState({ rating: Number(e.target.value) })}
+                                  className="w-20 p-1 border border-gray-300 rounded"
+                                  disabled={reviewState.submitting}
+                                  required
+                                />
+                                <label className="block mt-2 mb-1 font-medium">Comment:</label>
+                                <textarea
+                                  value={reviewState.comment}
+                                  onChange={(e) => updateReviewState({ comment: e.target.value })}
+                                  className="w-full p-2 border border-gray-300 rounded"
+                                  rows="3"
+                                  disabled={reviewState.submitting}
+                                  required
+                                />
+                                {reviewState.error && <p className="text-red-600 text-sm mt-1">{reviewState.error}</p>}
+                                <button
+                                  type="submit"
+                                  disabled={reviewState.submitting}
+                                  className="mt-3 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                                >
+                                  {reviewState.submitting ? 'Submitting...' : 'Submit Review'}
+                                </button>
+                              </form>
+                            )}
+                            {booking.status === 'completed' && hasReviewed && (
+                              <p className="mt-4 text-green-600 font-medium">Thank you for your review!</p>
+                            )}
+                          </div>
+                          <div className="flex flex-col space-y-1">
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                              booking.status === 'confirmed' ? 'bg-green-100 text-green-800' :
+                              booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                              booking.status === 'completed' ? 'bg-blue-100 text-blue-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                            </span>
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                              booking.paymentStatus === 'paid' ? 'bg-green-100 text-green-800' :
+                              booking.paymentStatus === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              Payment: {booking.paymentStatus.charAt(0).toUpperCase() + booking.paymentStatus.slice(1)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-            </div>
-            <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
-              <div className="flex items-center">
-                <div className="p-3 bg-green-100 rounded-lg">
-                  <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Confirmed</p>
-                  <p className="text-2xl font-bold text-gray-900">{confirmedBookings}</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
-              <div className="flex items-center">
-                <div className="p-3 bg-purple-100 rounded-lg">
-                  <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                  </svg>
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Completed</p>
-                  <p className="text-2xl font-bold text-gray-900">{completedBookings}</p>
-                </div>
-              </div>
-            </div>
-          </div>
+            )}
+          </>
         )}
 
         {activeTab === 'profile' && (

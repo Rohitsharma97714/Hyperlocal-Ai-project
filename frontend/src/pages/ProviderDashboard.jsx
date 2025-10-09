@@ -58,6 +58,21 @@ export default function ProviderDashboard() {
   const inProgressBookings = bookings.filter(booking => booking.status === 'in_progress');
   const completedBookings = bookings.filter(booking => booking.status === 'completed');
 
+  // Count objects for badges
+  const serviceCounts = {
+    pending: pendingServices.length,
+    approved: approvedServices.length,
+    rejected: rejectedServices.length
+  };
+
+  const bookingCounts = {
+    pending: pendingBookings.length,
+    approved: approvedBookings.length,
+    scheduled: scheduledBookings.length,
+    in_progress: inProgressBookings.length,
+    completed: completedBookings.length
+  };
+
   useEffect(() => {
     loadServices();
     loadBookings();
@@ -187,7 +202,7 @@ export default function ProviderDashboard() {
       description: service.description,
       category: isPredefined ? service.category : "Other",
       price: service.price,
-      duration: service.duration,
+      duration: service.duration ? service.duration.split(' ')[0] : '',
       location: service.location
     });
 
@@ -390,7 +405,7 @@ export default function ProviderDashboard() {
                       : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                   }`}
                 >
-                  {tab.charAt(0).toUpperCase() + tab.slice(1)} Services
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)} Services <span className="ml-2 bg-orange-600 text-white rounded-full px-2 py-1 text-xs font-medium">{serviceCounts[tab]}</span>
                 </button>
               ))
             ) : activeTab === "bookings" ? (
@@ -404,7 +419,7 @@ export default function ProviderDashboard() {
                       : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                   }`}
                 >
-                  {tab.charAt(0).toUpperCase() + tab.slice(1)} Bookings
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)} Bookings <span className="ml-2 bg-orange-600 text-white rounded-full px-2 py-1 text-xs font-medium">{bookingCounts[tab]}</span>
                 </button>
               ))
             ) : null}

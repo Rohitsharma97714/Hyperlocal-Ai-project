@@ -25,6 +25,18 @@ export default function AdminDashboard() {
   const [rejectedProviders, setRejectedProviders] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Count objects for badges
+  const providerCounts = {
+    pending: pendingProviders.length,
+    approved: approvedProviders.length,
+    rejected: rejectedProviders.length
+  };
+
+  const serviceCounts = {
+    pending: pendingServices.length,
+    approved: approvedServices.length
+  };
+
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [activeMainTab, setActiveMainTab] = useState(() => {
@@ -554,7 +566,7 @@ export default function AdminDashboard() {
                     setSearchParams({ mainTab: activeMainTab, subTab: status });
                   }}
                 >
-                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                  {status.charAt(0).toUpperCase() + status.slice(1)} {activeMainTab === "providers" ? "Providers" : "Services"} <span className="ml-2 bg-orange-600 text-white rounded-full px-2 py-1 text-xs font-medium">{activeMainTab === "providers" ? providerCounts[status] : serviceCounts[status]}</span>
                 </button>
               ))}
             </div>

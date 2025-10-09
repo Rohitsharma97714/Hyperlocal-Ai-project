@@ -134,13 +134,13 @@ router.put('/:id', protect(), async (req, res) => {
       return res.status(403).json({ message: 'Access denied' });
     }
 
-    // If provider is updating, reset status to pending for re-approval unless both provider and service are approved
+    // If provider is updating, keep approved status if service was approved, else set to pending
     if (req.user.role === 'provider') {
-      const provider = await Provider.findById(req.user.id);
-      if (provider.approvalStatus !== 'approved' || service.status !== 'approved') {
+      if (service.status === 'approved') {
+        req.body.status = 'approved';
+      } else {
         req.body.status = 'pending';
       }
-      // If both are approved, keep the current status (don't set to pending)
     }
 
     const updatedService = await Service.findByIdAndUpdate(
