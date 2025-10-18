@@ -174,9 +174,17 @@ router.put('/:id/status', protect(), async (req, res) => {
     }
 
     if (status === 'rejected') {
+      // Send rejection email before deleting booking
+      try {
+        console.log('📧 Sending rejection email...');
+        await sendBookingRejectionEmail(booking.user.email, booking.user.name, booking.service.name, notes || 'No additional notes provided.');
+        console.log('📧 Rejection email sent successfully.');
+      } catch (emailError) {
+        console.error('Error sending rejection email:', emailError);
+      }
+
       // Delete booking on rejection
       await Booking.findByIdAndDelete(req.params.id);
-      // Optionally send rejection email here if needed
       return res.json({ message: 'Booking rejected and deleted successfully' });
     }
 

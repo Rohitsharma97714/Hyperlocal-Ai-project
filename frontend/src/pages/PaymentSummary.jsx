@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { setupRazorpayConsoleSuppression, injectRazorpayCSSFix, createRazorpayOptions } from '../utils/razorpayUtils';
 
 const PaymentSummary = () => {
   const navigate = useNavigate();
@@ -21,6 +22,10 @@ const PaymentSummary = () => {
 
     setLoading(true);
     setError('');
+
+    // Setup console suppression and CSS injection
+    const consoleSuppression = setupRazorpayConsoleSuppression();
+    const cssInjection = injectRazorpayCSSFix();
 
     try {
       console.log('Creating payment order for:', bookingData);
@@ -62,14 +67,10 @@ const PaymentSummary = () => {
       console.log('Order created successfully:', order);
 
       // Step 2: Open Razorpay checkout
-      const options = {
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
-        amount: order.amount,
-        currency: order.currency,
-        name: 'HyperLocal AI',
-        description: `Booking for ${bookingData.serviceName}`,
-        order_id: order.id,
-        handler: async function (razorpayResponse) {
+      const options = createRazorpayOptions(
+        order,
+        bookingData,
+        async function (razorpayResponse) {
           try {
             // Step 3: Verify payment and create booking
             const verifyRes = await fetch('http://localhost:5000/api/bookings/verify-payment', {
@@ -100,22 +101,27 @@ const PaymentSummary = () => {
             }
           } catch (error) {
             setError('Payment verification failed. Please contact support.');
+          } finally {
+            // Cleanup after payment completion
+            consoleSuppression.restore();
+            cssInjection.remove();
           }
         },
-        prefill: {
-          name: '', // You can add user name if available
-          email: '', // You can add user email if available
-        },
-        theme: {
-          color: '#14b8a6', // Teal color
-        },
-      };
+        function () {
+          // Cleanup when modal is dismissed
+          consoleSuppression.restore();
+          cssInjection.remove();
+        }
+      );
 
       const rzp = new window.Razorpay(options);
       rzp.open();
 
     } catch (error) {
       setError('Failed to initiate payment. Please try again.');
+      // Cleanup on error
+      consoleSuppression.restore();
+      cssInjection.remove();
     } finally {
       setLoading(false);
     }
