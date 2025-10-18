@@ -25,12 +25,32 @@ if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
 // Get all bookings for a user (any authenticated user can access their own bookings)
 router.get('/user', protect(), async (req, res) => {
   try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    // Get total count for pagination
+    const totalBookings = await Booking.countDocuments({ user: req.user.id });
+
     const bookings = await Booking.find({ user: req.user.id })
       .populate('service', 'name category price duration')
       .populate('provider', 'name company phone')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
-    res.json(bookings);
+    const totalPages = Math.ceil(totalBookings / limit);
+
+    res.json({
+      bookings,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalBookings,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1
+      }
+    });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

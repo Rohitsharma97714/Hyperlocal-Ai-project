@@ -1,21 +1,41 @@
-# TODO: Implement Google OAuth 2.0 Authentication
+# Dark Mode Implementation TODO
 
-## Backend Changes
-- [ ] Install required packages: passport, passport-google-oauth20, express-session
-- [ ] Update backend/.env with GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, BACKEND_URL, FRONTEND_URL
-- [ ] Update backend/src/models/User.js: add profilePicture, isGoogleUser fields, skip password validation for Google users
-- [ ] Update backend/server.js: add Passport middleware, session, MongoDB serialization/deserialization
-- [ ] Update backend/src/routes/auth.js: add Google OAuth strategy, /google and /google/callback routes
+## Core Setup
+- [ ] Create `frontend/src/context/ThemeContext.jsx` with theme state, toggle function, localStorage persistence, and system preference default
+- [ ] Update `frontend/tailwind.config.js` to enable dark mode with `darkMode: 'class'`
+- [ ] Update `frontend/src/index.css` with CSS variables for light and dark themes, including transitions
+- [ ] Update `frontend/src/App.jsx` to wrap with ThemeProvider and apply theme class to root div
 
-## Frontend Changes
-- [ ] Install react-toastify for success toast
-- [ ] Create frontend/src/components/GoogleRoleSelection.js component
-- [ ] Update frontend/src/pages/Login.jsx: include GoogleRoleSelection, add useEffect for URL params handling
+## UI Components
+- [ ] Update `frontend/src/components/Navbar.jsx` to add theme toggle button with icons
 
-## Testing
-- [ ] Test Google OAuth flow
-- [ ] Verify existing email/password login still works
-- [ ] Verify role-based navigation
-- [ ] Verify JWT token with serverKey and 7-day expiry
-- [ ] Verify Google users get 'customer' role and isApproved: true
-- [ ] Verify redirect URL and error handling
+## Page Components
+- [ ] Update `frontend/src/pages/Home.jsx` to use theme variables for backgrounds, text, buttons, cards
+- [ ] Update `frontend/src/pages/Login.jsx` to use theme variables
+- [ ] Update `frontend/src/pages/Register.jsx` to use theme variables
+- [ ] Update `frontend/src/pages/UserDashboard.jsx` to use theme variables
+- [ ] Update `frontend/src/pages/AdminDashboard.jsx` to use theme variables
+- [ ] Update `frontend/src/pages/ProviderDashboard.jsx` to use theme variables
+- [ ] Update `frontend/src/pages/Services.jsx` to use theme variables
+- [ ] Update `frontend/src/pages/BookingDashboard.jsx` to use theme variables
+- [ ] Update `frontend/src/pages/PaymentSummary.jsx` to use theme variables
+- [ ] Update `frontend/src/pages/About.jsx` to use theme variables
+- [ ] Update `frontend/src/pages/Contact.jsx` to use theme variables
+- [ ] Update `frontend/src/pages/ForgotPassword.jsx` to use theme variables
+- [ ] Update `frontend/src/pages/ResetPassword.jsx` to use theme variables
+- [ ] Update `frontend/src/pages/verifyOtp.jsx` to use theme variables
+
+## Component Updates
+- [ ] Update `frontend/src/components/BookingForm.jsx` to use theme variables
+- [ ] Update `frontend/src/components/Footer.jsx` to use theme variables
+- [ ] Update `frontend/src/components/GoogleRoleSelection.jsx` to use theme variables
+- [ ] Update `frontend/src/components/ProtectedRoute.jsx` to use theme variables
+- [ ] Update `frontend/src/components/ServiceSummary.jsx` to use theme variables
+
+## Testing and Verification
+- [ ] Test theme persistence after page reload
+- [ ] Verify responsiveness across all pages (mobile, tablet, desktop)
+- [ ] Test on local development server
+- [ ] Test on Vercel deployment
+- [ ] Ensure no layout breaks or functionality issues
+- [ ] Confirm all elements adapt to light/dark mode

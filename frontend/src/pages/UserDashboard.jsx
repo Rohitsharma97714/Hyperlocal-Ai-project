@@ -21,6 +21,10 @@ export default function UserDashboard() {
   const [selectedCard, setSelectedCard] = useState(null);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [activeSubTab, setActiveSubTab] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalBookings, setTotalBookings] = useState(0);
+  const [pageSize] = useState(10);
 
   const handleLogout = () => {
     logout();
@@ -81,17 +85,23 @@ export default function UserDashboard() {
   useEffect(() => {
     const fetchBookings = async () => {
       try {
-        const response = await getUserBookings();
-        // Defensive check: ensure response.data is an array
-        if (Array.isArray(response.data)) {
-          setBookings(response.data);
+        const response = await getUserBookings(currentPage, pageSize);
+        // Handle paginated response
+        if (response.data.bookings && Array.isArray(response.data.bookings)) {
+          setBookings(response.data.bookings);
+          setTotalPages(response.data.pagination.totalPages);
+          setTotalBookings(response.data.pagination.totalBookings);
         } else {
-          console.error('Bookings data is not an array:', response.data);
+          console.error('Bookings data is not in expected format:', response.data);
           setBookings([]);
+          setTotalPages(1);
+          setTotalBookings(0);
         }
       } catch (error) {
         console.error('Error fetching bookings:', error);
         setBookings([]);
+        setTotalPages(1);
+        setTotalBookings(0);
       } finally {
         setLoading(false);
       }
@@ -100,16 +110,15 @@ export default function UserDashboard() {
     if (user) {
       fetchBookings();
     }
-  }, [user]);
+  }, [user, currentPage, pageSize]);
 
-  const totalBookings = bookings.length;
   const pendingBookings = bookings.filter(b => b.status === 'pending').length;
   const confirmedBookings = bookings.filter(b => b.status === 'confirmed').length;
   // Fix: Include bookings with status 'reviewed' as completed
   const completedBookings = bookings.filter(b => b.status === 'completed' || b.status === 'reviewed').length;
 
   const bookingCounts = {
-    all: bookings.length,
+    all: totalBookings,
     pending: pendingBookings,
     confirmed: confirmedBookings,
     completed: completedBookings

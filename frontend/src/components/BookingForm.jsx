@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 
@@ -12,6 +12,7 @@ const BookingForm = ({ service, onClose, onSuccess }) => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [availableSlots, setAvailableSlots] = useState([]);
 
   // Remove blocking service display for non-logged in users
   // Check if user is logged in
@@ -26,6 +27,33 @@ const BookingForm = ({ service, onClose, onSuccess }) => {
     '13:00', '14:00', '15:00', '16:00', '17:00',
     '18:00', '19:00', '20:00'
   ];
+
+  // Filter available time slots based on selected date
+  useEffect(() => {
+    if (!formData.date) {
+      setAvailableSlots([]);
+      return;
+    }
+
+    const selectedDate = new Date(formData.date);
+    const today = new Date();
+    const isToday = selectedDate.toDateString() === today.toDateString();
+
+    if (isToday) {
+      const now = new Date();
+      const currentHour = now.getHours();
+      const currentMinute = now.getMinutes();
+
+      const filteredSlots = predefinedSlots.filter(slot => {
+        const [slotHour, slotMinute] = slot.split(':').map(Number);
+        return slotHour > currentHour || (slotHour === currentHour && slotMinute > currentMinute);
+      });
+      setAvailableSlots(filteredSlots);
+    } else {
+      // For future dates, show all slots
+      setAvailableSlots(predefinedSlots);
+    }
+  }, [formData.date]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -109,7 +137,7 @@ const BookingForm = ({ service, onClose, onSuccess }) => {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
             >
               <option value="">Select time</option>
-              {predefinedSlots.map((slot) => (
+              {availableSlots.map((slot) => (
                 <option key={slot} value={slot}>{slot}</option>
               ))}
             </select>

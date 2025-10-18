@@ -63,7 +63,7 @@ export const createService = (data) => api.post('/services', data);
 export const updateService = (serviceId, data) => api.put(`/services/${serviceId}`, data);
 export const deleteService = (serviceId) => api.delete(`/services/${serviceId}`);
 export const createBooking = (data) => api.post('/bookings', data);
-export const getUserBookings = () => api.get('/bookings/user');
+export const getUserBookings = (page = 1, limit = 10) => api.get(`/bookings/user?page=${page}&limit=${limit}`);
 export const getProviderBookings = () => api.get('/bookings/provider');
 export const updateBookingStatus = (bookingId, status, notes = '') => api.put(`/bookings/${bookingId}/status`, { status, notes });
 export const cancelBooking = (bookingId) => api.patch(`/bookings/${bookingId}/cancel`);
