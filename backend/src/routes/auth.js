@@ -351,17 +351,28 @@ router.put('/profile', protect, async (req, res) => {
 
 // ------------------ Google OAuth Routes ------------------
 
-router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+router.get('/google', (req, res, next) => {
+  // Get frontend URL from query param or environment
+  const frontendUrl = req.query.frontend_url || process.env.FRONTEND_URL || 'http://localhost:5173';
+  // Store frontend URL in session for callback use
+  req.session.frontendUrl = frontendUrl;
+  passport.authenticate('google', { scope: ['profile', 'email'] })(req, res, next);
+});
 
-router.get('/google/callback', passport.authenticate('google', { failureRedirect: `${process.env.FRONTEND_URL}/login?error=Google authentication failed` }), async (req, res) => {
+router.get('/google/callback', passport.authenticate('google', { failureRedirect: (req, res) => {
+  const frontendUrl = req.session?.frontendUrl || process.env.FRONTEND_URL || 'http://localhost:5173';
+  return `${frontendUrl}/login?error=Google authentication failed`;
+} }), async (req, res) => {
   try {
     const user = req.user;
     const token = jwt.sign({ id: user._id, role: user.role, serverStartTime: parseInt(process.env.SERVER_START_TIME) }, process.env.JWT_SECRET, { expiresIn: '7d' });
     const encodedUser = encodeURIComponent(JSON.stringify({ id: user._id, name: user.name, email: user.email, role: user.role }));
-    res.redirect(`${process.env.FRONTEND_URL}/login?token=${token}&user=${encodedUser}`);
+    const frontendUrl = req.session?.frontendUrl || process.env.FRONTEND_URL || 'http://localhost:5173';
+    res.redirect(`${frontendUrl}/login?token=${token}&user=${encodedUser}`);
   } catch (error) {
     console.error(error);
-    res.redirect(`${process.env.FRONTEND_URL}/login?error=Internal server error`);
+    const frontendUrl = req.session?.frontendUrl || process.env.FRONTEND_URL || 'http://localhost:5173';
+    res.redirect(`${frontendUrl}/login?error=Internal server error`);
   }
 });
 
