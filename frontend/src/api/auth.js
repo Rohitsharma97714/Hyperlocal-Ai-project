@@ -1,8 +1,8 @@
 // filepath: c:\Users\HP\OneDrive\Desktop\HyperLocal Ai\frontend\src\api\auth.js
 import axios from 'axios';
+import API_BASE_URL from '../config/apiConfig';
 
-const API_URL = 'http://localhost:5000/api/auth';
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_URL = `${API_BASE_URL}/auth`;
 
 // Create axios instance with interceptors
 const api = axios.create({
