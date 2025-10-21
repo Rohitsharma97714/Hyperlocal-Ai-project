@@ -32,7 +32,11 @@ const app = express();
 
 // CORS middleware
 app.use(cors({
-  origin: [process.env.FRONTEND_URL || "http://localhost:3000"],
+  origin: [
+    process.env.FRONTEND_URL || "https://hyperlocal-ai-project.vercel.app",
+    "http://localhost:5173", // Vite dev server
+    "http://localhost:3000"  // Fallback for other dev setups
+  ],
   credentials: true
 }));
 
@@ -80,7 +84,11 @@ const PORT = process.env.PORT || 5000;
 const server = http.createServer(app);
 const io = new SocketIOServer(server, {
   cors: {
-    origin: [process.env.FRONTEND_URL || "http://localhost:3000"],
+    origin: [
+      process.env.FRONTEND_URL || "https://hyperlocal-ai-project.vercel.app",
+      "http://localhost:5173", // Vite dev server
+      "http://localhost:3000"  // Fallback for other dev setups
+    ],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true
   }
