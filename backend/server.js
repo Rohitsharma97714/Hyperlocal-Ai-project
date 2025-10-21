@@ -68,13 +68,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/provider', providerRoutes);
 app.use('/api', protectedRoutes);
 
-// Serve frontend build (React)
-const frontendPath = path.join(__dirname, '../frontend/build');
-app.use(express.static(frontendPath));
-
-app.get('*', (req, res) => {
-  res.sendFile(path.join(frontendPath, 'index.html'));
-});
+// Frontend is served separately on Vercel, so backend only handles API routes
 
 // Error handling
 app.use(errorHandler);
