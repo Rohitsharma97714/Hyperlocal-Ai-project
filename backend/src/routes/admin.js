@@ -5,16 +5,14 @@ import Booking from '../models/Booking.js';
 import User from '../models/User.js';
 import Admin from '../models/Admin.js';
 import { protect } from '../middleware/auth.js';
-import { sendApprovalEmail, sendRejectionEmail } from '../utils/sendEmail.js';
+import { sendApprovalEmail, sendRejectionEmail, sendServiceApprovalEmail, sendServiceRejectionEmail } from '../utils/sendEmail.js';
 
 const router = express.Router();
 
 // Get all pending providers for approval
 router.get('/pending-providers', protect(), async (req, res) => {
   try {
-    console.log('Admin route: pending-providers - User role:', req.user.role);
     if (req.user.role !== 'admin') {
-      console.log('Admin route: Access denied - user role is not admin');
       return res.status(403).json({ message: 'Admin access required' });
     }
 
@@ -24,7 +22,6 @@ router.get('/pending-providers', protect(), async (req, res) => {
 
     res.json(providers);
   } catch (error) {
-    console.error('Error fetching pending providers:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -36,15 +33,12 @@ router.get('/pending-services', protect(), async (req, res) => {
       return res.status(403).json({ message: 'Admin access required' });
     }
 
-    console.log('Fetching pending services...');
     const services = await Service.find({ status: 'pending' })
       .populate('provider', 'name email company')
       .sort({ createdAt: -1 });
 
-    console.log('Found services:', services.length);
     res.json(services);
   } catch (error) {
-    console.error('Error fetching pending services:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -241,6 +235,49 @@ router.put('/providers/:id/reject', protect(), async (req, res) => {
     res.json({ message: 'Provider rejected successfully', provider });
   } catch (error) {
     console.error('Error rejecting provider:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Approve a service
+router.patch('/services/:id/status', protect(), async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Admin access required' });
+    }
+
+    const service = await Service.findById(req.params.id).populate('provider', 'name email company');
+    if (!service) {
+      return res.status(404).json({ message: 'Service not found' });
+    }
+
+    const { status, adminNotes } = req.body;
+
+    if (!['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid status. Must be approved or rejected.' });
+    }
+
+    // Update service status
+    service.status = status;
+    service.adminNotes = adminNotes || '';
+    await service.save();
+
+    // Send email notification to provider
+    if (status === 'approved') {
+      await sendServiceApprovalEmail(service.provider.email, service.provider.name, service.name, service.adminNotes);
+    } else if (status === 'rejected') {
+      await sendServiceRejectionEmail(service.provider.email, service.provider.name, service.name, service.adminNotes);
+    }
+
+    res.json({
+      message: `Service ${status} successfully`,
+      service: {
+        ...service.toObject(),
+        provider: service.provider
+      }
+    });
+  } catch (error) {
+    console.error('Error updating service status:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });

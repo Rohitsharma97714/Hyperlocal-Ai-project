@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import API_BASE_URL from '../config/apiConfig';
 
 const BookingDashboard = () => {
   const navigate = useNavigate();
@@ -13,7 +14,7 @@ const BookingDashboard = () => {
 
   const fetchBookings = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/bookings/user', {
+      const response = await fetch(`${API_BASE_URL}/bookings/user/all`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }

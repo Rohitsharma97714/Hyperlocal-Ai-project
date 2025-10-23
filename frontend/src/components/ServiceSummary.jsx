@@ -1,5 +1,6 @@
 import React, { useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext.jsx';
+import API_BASE_URL from '../config/apiConfig';
 
 export default function ServiceSummary({ service, onClose, onReviewSubmit }) {
   const { user } = useContext(AuthContext);
@@ -23,7 +24,7 @@ export default function ServiceSummary({ service, onClose, onReviewSubmit }) {
       }
 
       // Find a completed booking for this service by the current user
-      const bookingResponse = await fetch(`http://localhost:5000/api/bookings/user`, {
+      const bookingResponse = await fetch(`${API_BASE_URL}/bookings/user`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -47,7 +48,7 @@ export default function ServiceSummary({ service, onClose, onReviewSubmit }) {
       }
 
       // Submit the review
-      const reviewResponse = await fetch(`http://localhost:5000/api/bookings/${completedBooking._id}/review`, {
+      const reviewResponse = await fetch(`${API_BASE_URL}/bookings/${completedBooking._id}/review`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

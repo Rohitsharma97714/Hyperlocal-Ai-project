@@ -3,7 +3,9 @@ import React from 'react';
 const GoogleRoleSelection = () => {
   const handleGoogleLogin = () => {
     const backendUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000';
-    window.location.href = `${backendUrl}/api/auth/google?frontend_url=${encodeURIComponent(import.meta.env.VITE_FRONTEND_URL || 'http://localhost:5173')}`;
+    // Use current origin for local development, fallback to env for production
+    const frontendUrl = window.location.origin;
+    window.location.href = `${backendUrl}/api/auth/google?frontend_url=${encodeURIComponent(frontendUrl)}`;
   };
 
   return (

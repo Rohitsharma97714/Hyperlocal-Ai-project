@@ -7,7 +7,7 @@ const API_ADMIN_URL = `${API_BASE_URL}/admin`;
 export const getPendingProviders = async () => {
   const token = localStorage.getItem('token');
   console.log('Frontend API: getPendingProviders - Token present:', !!token, 'Length:', token?.length);
-  const response = await axios.get(`${API_BASE_URL}/pending-providers`, {
+  const response = await axios.get(`${API_ADMIN_URL}/pending-providers`, {
     headers: { Authorization: `Bearer ${token}` }
   });
   return response.data;
@@ -16,7 +16,7 @@ export const getPendingProviders = async () => {
 // Get pending services
 export const getPendingServices = async () => {
   const token = localStorage.getItem('token');
-  const response = await axios.get(`${API_BASE_URL}/pending-services`, {
+  const response = await axios.get(`${API_ADMIN_URL}/pending-services`, {
     headers: { Authorization: `Bearer ${token}` }
   });
   return response.data;
@@ -25,7 +25,7 @@ export const getPendingServices = async () => {
 // Get approved providers
 export const getApprovedProviders = async () => {
   const token = localStorage.getItem('token');
-  const response = await axios.get(`${API_BASE_URL}/approved-providers`, {
+  const response = await axios.get(`${API_ADMIN_URL}/approved-providers`, {
     headers: { Authorization: `Bearer ${token}` }
   });
   return response.data;
@@ -34,7 +34,7 @@ export const getApprovedProviders = async () => {
 // Get approved services
 export const getApprovedServices = async () => {
   const token = localStorage.getItem('token');
-  const response = await axios.get(`${API_BASE_URL}/approved-services`, {
+  const response = await axios.get(`${API_ADMIN_URL}/approved-services`, {
     headers: { Authorization: `Bearer ${token}` }
   });
   return response.data;
@@ -43,7 +43,7 @@ export const getApprovedServices = async () => {
 // Get rejected providers
 export const getRejectedProviders = async () => {
   const token = localStorage.getItem('token');
-  const response = await axios.get(`${API_BASE_URL}/rejected-providers`, {
+  const response = await axios.get(`${API_ADMIN_URL}/rejected-providers`, {
     headers: { Authorization: `Bearer ${token}` }
   });
   return response.data;
@@ -52,7 +52,7 @@ export const getRejectedProviders = async () => {
 // Get rejected services
 export const getRejectedServices = async () => {
   const token = localStorage.getItem('token');
-  const response = await axios.get(`${API_BASE_URL}/rejected-services`, {
+  const response = await axios.get(`${API_ADMIN_URL}/rejected-services`, {
     headers: { Authorization: `Bearer ${token}` }
   });
   return response.data;
@@ -61,7 +61,7 @@ export const getRejectedServices = async () => {
 // Update admin profile
 export const updateAdminProfile = async (profileData) => {
   const token = localStorage.getItem('token');
-  const response = await axios.put(`${API_BASE_URL}/profile`, profileData, {
+  const response = await axios.put(`${API_ADMIN_URL}/profile`, profileData, {
     headers: { Authorization: `Bearer ${token}` }
   });
   return response.data;
@@ -70,7 +70,7 @@ export const updateAdminProfile = async (profileData) => {
 // Approve a provider
 export const approveProvider = async (providerId, adminNotes) => {
   const token = localStorage.getItem('token');
-  const response = await axios.put(`${API_BASE_URL}/providers/${providerId}/approve`, { adminNotes }, {
+  const response = await axios.put(`${API_ADMIN_URL}/providers/${providerId}/approve`, { adminNotes }, {
     headers: { Authorization: `Bearer ${token}` }
   });
   return response.data;
@@ -79,7 +79,7 @@ export const approveProvider = async (providerId, adminNotes) => {
 // Reject a provider
 export const rejectProvider = async (providerId, adminNotes) => {
   const token = localStorage.getItem('token');
-  const response = await axios.put(`${API_BASE_URL}/providers/${providerId}/reject`, { adminNotes }, {
+  const response = await axios.put(`${API_ADMIN_URL}/providers/${providerId}/reject`, { adminNotes }, {
     headers: { Authorization: `Bearer ${token}` }
   });
   return response.data;
@@ -88,7 +88,7 @@ export const rejectProvider = async (providerId, adminNotes) => {
 // Approve a service
 export const approveService = async (serviceId, adminNotes) => {
   const token = localStorage.getItem('token');
-  const response = await axios.patch(`${API_BASE_URL}/services/${serviceId}/status`, { status: 'approved', adminNotes }, {
+  const response = await axios.patch(`${API_ADMIN_URL}/services/${serviceId}/status`, { status: 'approved', adminNotes }, {
     headers: { Authorization: `Bearer ${token}` }
   });
   return response.data;
@@ -97,7 +97,7 @@ export const approveService = async (serviceId, adminNotes) => {
 // Reject a service
 export const rejectService = async (serviceId, adminNotes) => {
   const token = localStorage.getItem('token');
-  const response = await axios.patch(`${API_BASE_URL}/services/${serviceId}/status`, { status: 'rejected', adminNotes }, {
+  const response = await axios.patch(`${API_ADMIN_URL}/services/${serviceId}/status`, { status: 'rejected', adminNotes }, {
     headers: { Authorization: `Bearer ${token}` }
   });
   return response.data;

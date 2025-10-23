@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { verifyOTP } from '../api/auth';
+import { verifyOTP, resendOTP } from '../api/auth';
 
 export default function VerifyOtp() {
   const [formData, setFormData] = useState({ role: '', id: '', otp: '' });
@@ -28,6 +28,15 @@ export default function VerifyOtp() {
       navigate('/login');
     } catch (error) {
       toast.error(error.response.data.message);
+    }
+  };
+
+  const handleResendOTP = async () => {
+    try {
+      const response = await resendOTP({ role: formData.role, id: formData.id });
+      toast.success(response.message);
+    } catch (error) {
+      toast.error(error.message || 'Failed to resend OTP');
     }
   };
 
@@ -74,7 +83,7 @@ export default function VerifyOtp() {
         </form>
         <div className="text-center mt-6">
           <p className="text-sm text-gray-500">
-            Didn't receive the code? <button className="text-purple-600 hover:underline font-medium">Resend OTP</button>
+            Didn't receive the code? <button onClick={handleResendOTP} className="text-purple-600 hover:underline font-medium">Resend OTP</button>
           </p>
         </div>
       </div>

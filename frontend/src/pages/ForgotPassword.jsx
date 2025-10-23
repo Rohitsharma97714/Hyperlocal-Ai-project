@@ -17,7 +17,7 @@ const ForgotPassword = () => {
     setMessage('');
     setError('');
     try {
-      const response = await axios.post('http://localhost:5000/api/auth/forgot-password', {
+      const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/auth/forgot-password`, {
         email,
         role,
         newPassword
@@ -34,7 +34,7 @@ const ForgotPassword = () => {
     setMessage('');
     setError('');
     try {
-      const response = await axios.post('http://localhost:5000/api/auth/verify-reset-otp', {
+      const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/auth/verify-reset-otp`, {
         email,
         role,
         otp

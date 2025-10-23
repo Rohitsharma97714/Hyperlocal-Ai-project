@@ -16,13 +16,10 @@ const Login = () => {
   const { login } = useContext(AuthContext);
 
   useEffect(() => {
-    console.log('Login useEffect running, location.search:', location.search);
     const params = new URLSearchParams(location.search);
     const token = params.get("token");
     const user = params.get("user");
     const errorParam = params.get("error");
-
-    console.log('Parsed params:', { token: !!token, user: !!user, errorParam });
 
     if (errorParam) {
       setError(errorParam);
@@ -32,10 +29,8 @@ const Login = () => {
     }
 
     if (!hasProcessedGoogleLogin.current && token && user) {
-      console.log('Processing Google login');
       try {
         const parsedUser = JSON.parse(decodeURIComponent(user));
-        console.log('Parsed user:', parsedUser);
         login({
           token,
           role: parsedUser.role,

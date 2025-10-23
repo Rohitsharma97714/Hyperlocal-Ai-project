@@ -5,7 +5,7 @@ import User from '../models/User.js';
 import { protect } from '../middleware/auth.js';
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
-import { sendBookingApprovalEmail, sendBookingRejectionEmail, sendBookingScheduledEmail, sendBookingInProgressEmail, sendBookingCompletedEmail } from '../utils/sendEmail.js';
+import { addEmailJob, addNotificationJob } from '../utils/queue.js';
 
 const router = express.Router();
 
@@ -56,6 +56,20 @@ router.get('/user', protect(), async (req, res) => {
   }
 });
 
+// Get all bookings for a user (any authenticated user can access their own bookings) - without pagination
+router.get('/user/all', protect(), async (req, res) => {
+  try {
+    const bookings = await Booking.find({ user: req.user.id })
+      .populate('service', 'name category price duration')
+      .populate('provider', 'name company phone')
+      .sort({ createdAt: -1 });
+
+    res.json(bookings);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // Get all bookings for a provider
 router.get('/provider', protect(), async (req, res) => {
   try {
@@ -86,7 +100,6 @@ router.post('/', protect(), async (req, res) => {
     // Check if service exists and is approved
     const service = await Service.findById(serviceId);
     if (!service || service.status !== 'approved') {
-      console.log('Service not found or not approved:', serviceId);
       return res.status(400).json({ message: 'Service not available' });
     }
 
@@ -98,9 +111,7 @@ router.post('/', protect(), async (req, res) => {
       payment_capture: 1,
     };
 
-    console.log('Creating Razorpay order with options:', options);
     const order = await razorpay.orders.create(options);
-    console.log('Razorpay order created:', order);
 
     if (!order || !order.id) {
       throw new Error('Failed to create Razorpay order. Please check Razorpay keys.');
@@ -177,37 +188,193 @@ router.post('/verify-payment', protect(), async (req, res) => {
 
 // ------------------- BOOKING MANAGEMENT -------------------
 
-// Update booking status (provider or admin)
-router.put('/:id/status', protect(), async (req, res) => {
+// Bulk update booking status (provider or admin) - OPTIMIZED FOR INSTANT RESPONSE
+router.put('/bulk/status', protect(), async (req, res) => {
   try {
-    const { status, notes } = req.body;
+    const { bookingIds, status, notes } = req.body;
+
+    if (!Array.isArray(bookingIds) || bookingIds.length === 0) {
+      return res.status(400).json({ message: 'bookingIds must be a non-empty array' });
+    }
 
     if (!['approved', 'rejected', 'scheduled', 'in_progress', 'completed'].includes(status)) {
       return res.status(400).json({ message: 'Invalid status' });
     }
 
+    // Find all bookings to validate access and collect data for notifications
+    const bookings = await Booking.find({ _id: { $in: bookingIds } })
+      .populate('user', 'name email')
+      .populate('service', 'name')
+      .populate('provider', 'name company phone');
+
+    if (bookings.length !== bookingIds.length) {
+      return res.status(404).json({ message: 'Some bookings not found' });
+    }
+
+    // Validate access - user must be admin or provider for all bookings
+    for (const booking of bookings) {
+      if (req.user.role !== 'admin' && booking.provider.toString() !== req.user.id.toString()) {
+        return res.status(403).json({ message: 'Access denied for one or more bookings' });
+      }
+    }
+
+    const updatedBookings = [];
+    const rejectedBookings = [];
+
+    // Process each booking
+    for (const booking of bookings) {
+      if (status === 'rejected') {
+        // Handle rejection: queue email asynchronously, then delete booking
+        // Queue rejection email asynchronously (non-blocking)
+        addEmailJob('booking_rejection', {
+          email: booking.user.email,
+          name: booking.user.name,
+          serviceName: booking.service.name,
+          notes: notes || 'No additional notes provided.'
+        }).catch(emailError => {
+          // Error handling for email queuing
+        });
+
+        // Delete booking
+        await Booking.findByIdAndDelete(booking._id);
+        rejectedBookings.push(booking._id);
+      } else {
+        // Update booking status in MongoDB (blocking for data consistency)
+        const updateData = { status };
+        if (notes) updateData.notes = notes;
+
+        const updatedBooking = await Booking.findByIdAndUpdate(
+          booking._id,
+          updateData,
+          { new: true }
+        )
+        .populate('service', 'name category price duration')
+        .populate('user', 'name phone')
+        .populate('provider', 'name company phone');
+
+        updatedBookings.push(updatedBooking);
+
+        // Queue email and notification asynchronously (non-blocking)
+        const asyncOperations = [];
+
+        // Email notification
+        const emailPromise = (async () => {
+          try {
+            if (status === 'approved') {
+              const message = notes ? `Your booking has been approved. Notes from provider: ${notes}` : 'Your booking has been approved.';
+              await addEmailJob('booking_approval', {
+                email: booking.user.email,
+                name: booking.user.name,
+                serviceName: booking.service.name,
+                notes: message
+              });
+            } else if (status === 'scheduled') {
+              await addEmailJob('booking_scheduled', {
+                email: booking.user.email,
+                name: booking.user.name,
+                serviceName: booking.service.name,
+                date: booking.date,
+                time: booking.time
+              });
+            } else if (status === 'in_progress') {
+              await addEmailJob('booking_in_progress', {
+                email: booking.user.email,
+                name: booking.user.name,
+                serviceName: booking.service.name
+              });
+            } else if (status === 'completed') {
+              await addEmailJob('booking_completed', {
+                email: booking.user.email,
+                name: booking.user.name,
+                serviceName: booking.service.name,
+                bookingId: booking._id
+              });
+            }
+          } catch (emailError) {
+            // Error handling for email queuing
+          }
+        })();
+
+        // Socket.IO notification
+        const notificationPromise = (async () => {
+          try {
+            await addNotificationJob('booking_status_update', { booking: updatedBooking }, req.app.get('io'));
+          } catch (notificationError) {
+            // Error handling for notification queuing
+          }
+        })();
+
+        asyncOperations.push(emailPromise, notificationPromise);
+
+        // Fire and forget - don't await these async operations
+        Promise.all(asyncOperations).catch(error => {
+          // Error handling for async operations
+        });
+      }
+    }
+
+    // Respond immediately with results
+    res.json({
+      message: `Bulk status update completed. ${updatedBookings.length} updated, ${rejectedBookings.length} rejected.`,
+      updatedBookings,
+      rejectedBookings
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Update booking status (provider or admin) - OPTIMIZED FOR INSTANT RESPONSE
+router.put('/:id/status', protect(), async (req, res) => {
+  const startTime = Date.now();
+  console.log(`🚀 Starting booking status update for ID: ${req.params.id}`);
+
+  try {
+    const { status, notes } = req.body;
+
+    if (!['approved', 'rejected', 'scheduled', 'in_progress', 'completed'].includes(status)) {
+      console.log('❌ Invalid status provided:', status);
+      return res.status(400).json({ message: 'Invalid status' });
+    }
+
+    // Fetch booking data first
     const booking = await Booking.findById(req.params.id).populate('user', 'name email').populate('service', 'name');
-    if (!booking) return res.status(404).json({ message: 'Booking not found' });
+    if (!booking) {
+      console.log('❌ Booking not found:', req.params.id);
+      return res.status(404).json({ message: 'Booking not found' });
+    }
 
     if (req.user.role !== 'admin' && booking.provider.toString() !== req.user.id.toString()) {
+      console.log('❌ Access denied for user:', req.user.id, 'booking provider:', booking.provider);
       return res.status(403).json({ message: 'Access denied' });
     }
 
-    if (status === 'rejected') {
-      // Send rejection email before deleting booking
-      try {
-        console.log('📧 Sending rejection email...');
-        await sendBookingRejectionEmail(booking.user.email, booking.user.name, booking.service.name, notes || 'No additional notes provided.');
-        console.log('📧 Rejection email sent successfully.');
-      } catch (emailError) {
-        console.error('Error sending rejection email:', emailError);
-      }
+    console.log(`📝 Processing status update: ${booking.status} -> ${status}`);
 
-      // Delete booking on rejection
+    if (status === 'rejected') {
+      // Handle rejection: queue email asynchronously, then delete booking
+      console.log('🗑️ Processing booking rejection...');
+
+      // Queue rejection email asynchronously (non-blocking)
+      addEmailJob('booking_rejection', {
+        email: booking.user.email,
+        name: booking.user.name,
+        serviceName: booking.service.name,
+        notes: notes || 'No additional notes provided.'
+      }).catch(emailError => {
+        console.error('❌ Error queuing rejection email:', emailError);
+      });
+
+      // Delete booking
       await Booking.findByIdAndDelete(req.params.id);
+      console.log('✅ Booking rejected and deleted successfully');
+
+      const responseTime = Date.now() - startTime;
+      console.log(`⚡ Rejection response time: ${responseTime}ms`);
       return res.json({ message: 'Booking rejected and deleted successfully' });
     }
 
+    // Update booking status in MongoDB (blocking for data consistency)
     const updateData = { status };
     if (notes) updateData.notes = notes;
 
@@ -220,43 +387,75 @@ router.put('/:id/status', protect(), async (req, res) => {
     .populate('user', 'name phone')
     .populate('provider', 'name company phone');
 
-    // Send email notification based on status
-    console.log('📧 Preparing to send email for booking status update...');
-    console.log('📧 Status:', status);
-    console.log('📧 User email:', booking.user.email);
-    console.log('📧 User name:', booking.user.name);
-    console.log('📧 Service name:', booking.service.name);
-    try {
-      if (status === 'approved') {
-        const message = notes ? `Your booking has been approved. Notes from provider: ${notes}` : 'Your booking has been approved.';
-        console.log('📧 Sending approval email...');
-        await sendBookingApprovalEmail(booking.user.email, booking.user.name, booking.service.name, message);
-        console.log('📧 Approval email sent successfully.');
-      } else if (status === 'scheduled') {
-        console.log('📧 Sending scheduled email...');
-        await sendBookingScheduledEmail(booking.user.email, booking.user.name, booking.service.name, booking.date, booking.time);
-        console.log('📧 Scheduled email sent successfully.');
-      } else if (status === 'in_progress') {
-        console.log('📧 Sending in progress email...');
-        await sendBookingInProgressEmail(booking.user.email, booking.user.name, booking.service.name);
-        console.log('📧 In progress email sent successfully.');
-      } else if (status === 'completed') {
-        console.log('📧 Sending completed email...');
-        await sendBookingCompletedEmail(booking.user.email, booking.user.name, booking.service.name, req.params.id);
-        console.log('📧 Completed email sent successfully.');
-      }
-    } catch (emailError) {
-      console.error('Error sending email:', emailError);
-    }
+    console.log('✅ Booking status updated in database');
 
-    // Emit socket event for real-time updates
-    const io = req.app.get('io');
-    if (io) {
-      io.emit('bookingStatusUpdated', updatedBooking);
-    }
+    // Queue email notification asynchronously (non-blocking)
+    console.log('📧 Queuing email notification asynchronously...');
+    const emailPromise = (async () => {
+      try {
+        if (status === 'approved') {
+          const message = notes ? `Your booking has been approved. Notes from provider: ${notes}` : 'Your booking has been approved.';
+          await addEmailJob('booking_approval', {
+            email: booking.user.email,
+            name: booking.user.name,
+            serviceName: booking.service.name,
+            notes: message
+          });
+          console.log('📧 Approval email queued successfully');
+        } else if (status === 'scheduled') {
+          await addEmailJob('booking_scheduled', {
+            email: booking.user.email,
+            name: booking.user.name,
+            serviceName: booking.service.name,
+            date: booking.date,
+            time: booking.time
+          });
+          console.log('📧 Scheduled email queued successfully');
+        } else if (status === 'in_progress') {
+          await addEmailJob('booking_in_progress', {
+            email: booking.user.email,
+            name: booking.user.name,
+            serviceName: booking.service.name
+          });
+          console.log('📧 In progress email queued successfully');
+        } else if (status === 'completed') {
+          await addEmailJob('booking_completed', {
+            email: booking.user.email,
+            name: booking.user.name,
+            serviceName: booking.service.name,
+            bookingId: req.params.id
+          });
+          console.log('📧 Completed email queued successfully');
+        }
+      } catch (emailError) {
+        console.error('❌ Error queuing email notification:', emailError);
+      }
+    })();
+
+    // Queue Socket.IO notification asynchronously (non-blocking)
+    console.log('🔔 Queuing Socket.IO notification asynchronously...');
+    const notificationPromise = (async () => {
+      try {
+        await addNotificationJob('booking_status_update', { booking: updatedBooking }, req.app.get('io'));
+        console.log('🔔 Socket.IO notification queued successfully');
+      } catch (notificationError) {
+        console.error('❌ Error queuing Socket.IO notification:', notificationError);
+      }
+    })();
+
+    // Fire and forget - don't await these async operations
+    Promise.all([emailPromise, notificationPromise]).catch(error => {
+      console.error('❌ Error in async operations:', error);
+    });
+
+    // Respond immediately with updated booking data
+    const responseTime = Date.now() - startTime;
+    console.log(`⚡ Status update response time: ${responseTime}ms`);
 
     res.json(updatedBooking);
   } catch (error) {
+    const responseTime = Date.now() - startTime;
+    console.error(`❌ Server error in status update (${responseTime}ms):`, error.message);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });

@@ -1,5 +1,6 @@
 import React, { useContext, useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { toast } from 'react-toastify';
 import { AuthContext } from "../context/AuthContext";
 import {
   getPendingProviders,
@@ -223,10 +224,11 @@ export default function AdminDashboard() {
       const note = prompt("Enter approval note (optional):");
       try {
         await approveProvider(providerId, note || "");
+        toast.success("Provider approved successfully!");
         fetchDashboardData();
       } catch (error) {
         console.error("Error approving provider:", error);
-        alert("Failed to approve provider.");
+        toast.error("Failed to approve provider.");
       }
     };
 
@@ -234,10 +236,11 @@ export default function AdminDashboard() {
       const note = prompt("Enter rejection note (optional):");
       try {
         await rejectProvider(providerId, note || "");
+        toast.success("Provider rejected successfully!");
         fetchDashboardData();
       } catch (error) {
         console.error("Error rejecting provider:", error);
-        alert("Failed to reject provider.");
+        toast.error("Failed to reject provider.");
       }
     };
 
@@ -406,10 +409,11 @@ export default function AdminDashboard() {
       const note = prompt("Enter approval note (optional):");
       try {
         await approveService(serviceId, note || "");
+        toast.success("Service approved successfully!");
         fetchDashboardData();
       } catch (error) {
         console.error("Error approving service:", error);
-        alert("Failed to approve service.");
+        toast.error("Failed to approve service.");
       }
     };
 
@@ -417,11 +421,11 @@ export default function AdminDashboard() {
       const note = prompt("Enter rejection note (optional):");
       try {
         const response = await rejectService(serviceId, note || "");
-        alert("Service rejected and deleted successfully.");
+        toast.success("Service rejected and deleted successfully!");
         fetchDashboardData();
       } catch (error) {
         console.error("Error rejecting service:", error);
-        alert("Failed to reject service.");
+        toast.error("Failed to reject service.");
       }
     };
 

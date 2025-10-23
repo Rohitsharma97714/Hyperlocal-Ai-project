@@ -30,4 +30,11 @@ const bookingSchema = new mongoose.Schema({
   }]
 }, { timestamps: true });
 
+// Add indexes for performance optimization
+bookingSchema.index({ status: 1, provider: 1 }); // For provider dashboard queries
+bookingSchema.index({ user: 1, status: 1 }); // For user dashboard queries
+bookingSchema.index({ service: 1, date: 1, status: 1 }); // For availability checks
+bookingSchema.index({ razorpayOrderId: 1 }); // For payment verification
+bookingSchema.index({ createdAt: -1 }); // For recent bookings queries
+
 export default mongoose.model('Booking', bookingSchema);

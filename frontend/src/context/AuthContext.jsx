@@ -13,13 +13,9 @@ export const AuthProvider = ({ children }) => {
     const name = localStorage.getItem('name');
     const email = localStorage.getItem('email');
     const id = localStorage.getItem('id');
-    console.log('AuthContext: Initializing from localStorage:', { token: !!token, role, name, email, id });
     if (token && role && name && id) {
       const userData = { token, role, name, email, id };
       setUser(userData);
-      console.log('AuthContext: User initialized from localStorage:', userData);
-    } else {
-      console.log('AuthContext: No valid user data in localStorage');
     }
     // Set loading to false after initialization
     setIsLoading(false);

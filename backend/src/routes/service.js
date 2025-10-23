@@ -81,18 +81,13 @@ router.get('/pending', protect(['admin']), async (req, res) => {
 // Create new service (providers only)
 router.post('/', protect(), async (req, res) => {
   try {
-    console.log('POST /services - User:', req.user);
-    console.log('POST /services - Body:', req.body);
-
     if (req.user.role !== 'provider') {
-      console.log('POST /services - Access denied: not provider');
       return res.status(403).json({ message: 'Provider access required' });
     }
 
     // Get provider to check approval status
     const provider = await Provider.findById(req.user.id);
     if (!provider) {
-      console.log('POST /services - Provider not found');
       return res.status(404).json({ message: 'Provider not found' });
     }
 
@@ -102,8 +97,6 @@ router.post('/', protect(), async (req, res) => {
       status: 'pending'
     };
 
-    console.log('POST /services - Service data:', serviceData);
-
     const service = new Service(serviceData);
     await service.save();
 
@@ -112,10 +105,8 @@ router.post('/', protect(), async (req, res) => {
       $push: { services: service._id }
     });
 
-    console.log('POST /services - Service created successfully');
     res.status(201).json(service);
   } catch (error) {
-    console.log('POST /services - Error:', error.message);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -179,13 +170,9 @@ router.patch('/:id/status', protect(), async (req, res) => {
       // Send rejection email before deleting
       let emailSent = false;
       try {
-        console.log('📧 Sending service rejection email to:', service.provider.email);
         await sendServiceRejectionEmail(service.provider.email, service.provider.name, service.name, adminNotes);
-        console.log('✅ Service rejection email sent successfully');
         emailSent = true;
       } catch (emailError) {
-        console.error('❌ Error sending service rejection email:', emailError.message);
-        console.error('Email details:', { to: service.provider.email, serviceName: service.name });
         // Continue with deletion even if email fails
       }
 
@@ -216,13 +203,9 @@ router.patch('/:id/status', protect(), async (req, res) => {
       // Send approval email
       let emailSent = false;
       try {
-        console.log('📧 Sending service approval email to:', service.provider.email);
         await sendServiceApprovalEmail(service.provider.email, service.provider.name, service.name, adminNotes);
-        console.log('✅ Service approval email sent successfully');
         emailSent = true;
       } catch (emailError) {
-        console.error('❌ Error sending service approval email:', emailError.message);
-        console.error('Email details:', { to: service.provider.email, serviceName: service.name });
         // Do not fail the request if email sending fails
       }
 

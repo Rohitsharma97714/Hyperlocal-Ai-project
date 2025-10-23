@@ -10,6 +10,7 @@ import Provider from '../models/Provider.js';
 import Admin from '../models/Admin.js';
 import { sendOTPEmail, sendResetPasswordEmail } from '../utils/sendEmail.js';
 import { protect } from '../middleware/auth.js';
+import { addEmailJob } from '../utils/queue.js';
 
 dotenv.config();
 const router = express.Router();
@@ -32,14 +33,18 @@ passport.deserializeUser(async (id, done) => {
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  callbackURL: `${process.env.BACKEND_URL}/api/auth/google/callback`
+  callbackURL: process.env.NODE_ENV === 'development'
+    ? 'http://localhost:5000/api/auth/google/callback'
+    : `${process.env.BACKEND_URL}/api/auth/google/callback`
 }, async (accessToken, refreshToken, profile, done) => {
   try {
     const { name, email, picture } = profile._json;
+
+    // Check if user exists
     let user = await User.findOne({ email });
 
     if (user) {
-      // Update existing user info and ensure role is 'user'
+      // Update existing user
       user.name = name;
       user.profilePicture = picture;
       user.isGoogleUser = true;
@@ -61,10 +66,10 @@ passport.use(new GoogleStrategy({
 
     return done(null, user);
   } catch (error) {
+    console.error('Google Strategy Error:', error);
     return done(error, null);
   }
 }));
-
 // ------------------ Registration Routes ------------------
 
 // Helper function to generate OTP
@@ -86,7 +91,10 @@ const registerHandler = (model, roleName) => async (req, res) => {
         existing.otp = otp;
         existing.otpExpiry = Date.now() + otpExpiryTime;
         await existing.save();
-        await sendOTPEmail(email, otp);
+        await addEmailJob('send_otp', {
+          email: email,
+          otp: otp
+        });
 
         return res.status(200).json({
           message: 'OTP resent to your email. Please verify.',
@@ -105,7 +113,10 @@ const registerHandler = (model, roleName) => async (req, res) => {
 
     const account = await model.create(data);
 
-    await sendOTPEmail(email, otp);
+    await addEmailJob('send_otp', {
+      email: email,
+      otp: otp
+    });
 
     res.status(201).json({
       message: 'OTP sent to your email. Verify to complete registration.',
@@ -134,10 +145,15 @@ router.post('/verify-otp', async (req, res) => {
 
   try {
     const account = await model.findById(id);
+
     if (!account) return res.status(404).json({ message: `${role} not found` });
     if (account.isVerified) return res.status(400).json({ message: 'Already verified' });
-    if (account.otp !== Number(otp)) return res.status(400).json({ message: 'Invalid OTP' });
-    if (account.otpExpiry < Date.now()) return res.status(400).json({ message: 'OTP expired' });
+    if (account.otp !== Number(otp)) {
+      return res.status(400).json({ message: 'Invalid OTP' });
+    }
+    if (account.otpExpiry < Date.now()) {
+      return res.status(400).json({ message: 'OTP expired' });
+    }
 
     account.isVerified = true;
     account.otp = null;
@@ -145,6 +161,41 @@ router.post('/verify-otp', async (req, res) => {
     await account.save();
 
     res.status(200).json({ message: `${role} verified successfully` });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// ------------------ Resend OTP ------------------
+
+router.post('/resend-otp', async (req, res) => {
+  const { role, id } = req.body;
+
+  let model;
+  if (role === 'user') model = User;
+  else if (role === 'provider') model = Provider;
+  else if (role === 'admin') model = Admin;
+  else return res.status(400).json({ message: 'Invalid role' });
+
+  try {
+    const account = await model.findById(id);
+
+    if (!account) return res.status(404).json({ message: `${role} not found` });
+    if (account.isVerified) return res.status(400).json({ message: 'Already verified' });
+
+    // Generate new OTP
+    const otp = generateOTP();
+    account.otp = otp;
+    account.otpExpiry = Date.now() + otpExpiryTime;
+    await account.save();
+
+    await addEmailJob('send_otp', {
+      email: account.email,
+      otp: otp
+    });
+
+    res.status(200).json({ message: 'OTP resent to your email' });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error' });
@@ -295,6 +346,7 @@ router.post('/reset-password', async (req, res) => {
   }
 });
 
+
 // ------------------ Update Profile ------------------
 
 import validator from 'validator';
@@ -351,27 +403,46 @@ router.put('/profile', protect, async (req, res) => {
 
 // ------------------ Google OAuth Routes ------------------
 
+// Google OAuth Routes
 router.get('/google', (req, res, next) => {
-  // Get frontend URL from query param or environment
-  const frontendUrl = req.query.frontend_url || process.env.FRONTEND_URL || 'http://localhost:5173';
-  // Store frontend URL in session for callback use
+  // Get frontend URL from query params, fallback to localhost for local dev
+  const frontendUrl = req.query.frontend_url || "http://localhost:5173";
+
+  // Store frontend URL in session for callback (fallback)
   req.session.frontendUrl = frontendUrl;
-  passport.authenticate('google', { scope: ['profile', 'email'] })(req, res, next);
+
+  passport.authenticate('google', { scope: ['profile', 'email'], state: frontendUrl })(req, res, next);
 });
 
-router.get('/google/callback', passport.authenticate('google', { failureRedirect: (req, res) => {
-  const frontendUrl = req.session?.frontendUrl || process.env.FRONTEND_URL || 'http://localhost:5173';
-  return `${frontendUrl}/login?error=Google authentication failed`;
-} }), async (req, res) => {
+// Google OAuth callback
+router.get('/google/callback', passport.authenticate('google', {
+  failureRedirect: (req, res) => {
+    const frontendUrl = req.query.state || req.session?.frontendUrl || "http://localhost:5173";
+    const url = `${frontendUrl}/login?error=Google authentication failed`;
+    res.redirect(url);
+  }
+}), async (req, res) => {
   try {
     const user = req.user;
-    const token = jwt.sign({ id: user._id, role: user.role, serverStartTime: parseInt(process.env.SERVER_START_TIME) }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    const encodedUser = encodeURIComponent(JSON.stringify({ id: user._id, name: user.name, email: user.email, role: user.role }));
-    const frontendUrl = req.session?.frontendUrl || process.env.FRONTEND_URL || 'http://localhost:5173';
+    const token = jwt.sign(
+      { id: user._id, role: user.role, serverStartTime: parseInt(process.env.SERVER_START_TIME) },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    const encodedUser = encodeURIComponent(JSON.stringify({
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role
+    }));
+
+    const frontendUrl = req.query.state || req.session?.frontendUrl || "http://localhost:5173";
+
     res.redirect(`${frontendUrl}/login?token=${token}&user=${encodedUser}`);
   } catch (error) {
-    console.error(error);
-    const frontendUrl = req.session?.frontendUrl || process.env.FRONTEND_URL || 'http://localhost:5173';
+    console.error('Google OAuth callback error:', error);
+    const frontendUrl = req.query.state || req.session?.frontendUrl || "http://localhost:5173";
     res.redirect(`${frontendUrl}/login?error=Internal server error`);
   }
 });

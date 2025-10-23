@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { setupRazorpayConsoleSuppression, injectRazorpayCSSFix, createRazorpayOptions } from '../utils/razorpayUtils';
+import API_BASE_URL from '../config/apiConfig';
 
 const PaymentSummary = () => {
   const navigate = useNavigate();
@@ -30,7 +31,7 @@ const PaymentSummary = () => {
     try {
       console.log('Creating payment order for:', bookingData);
       // Step 1: Create Razorpay order
-      const orderRes = await fetch('http://localhost:5000/api/bookings', {
+      const orderRes = await fetch(`${API_BASE_URL}/bookings`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -50,6 +51,19 @@ const PaymentSummary = () => {
 
       if (!orderRes.ok) {
         console.error('Order creation failed:', orderData);
+
+        // Check for session expiry
+        if (orderRes.status === 401 && orderData.message && orderData.message.includes('Session expired')) {
+          // Clear user session and redirect to login
+          localStorage.removeItem('token');
+          localStorage.removeItem('role');
+          localStorage.removeItem('name');
+          localStorage.removeItem('email');
+          localStorage.removeItem('id');
+          navigate('/login');
+          return;
+        }
+
         setError(orderData.message || 'Failed to create payment order. Please try again.');
         setLoading(false);
         return;
@@ -73,7 +87,7 @@ const PaymentSummary = () => {
         async function (razorpayResponse) {
           try {
             // Step 3: Verify payment and create booking
-            const verifyRes = await fetch('http://localhost:5000/api/bookings/verify-payment', {
+            const verifyRes = await fetch(`${API_BASE_URL}/bookings/verify-payment`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -97,6 +111,17 @@ const PaymentSummary = () => {
               // Redirect to dashboard
               navigate('/dashboard');
             } else {
+              // Check for session expiry in verification
+              if (verifyRes.status === 401 && verifyData.message && verifyData.message.includes('Session expired')) {
+                // Clear user session and redirect to login
+                localStorage.removeItem('token');
+                localStorage.removeItem('role');
+                localStorage.removeItem('name');
+                localStorage.removeItem('email');
+                localStorage.removeItem('id');
+                navigate('/login');
+                return;
+              }
               setError(verifyData.message || 'Payment verification failed. Please contact support.');
             }
           } catch (error) {
