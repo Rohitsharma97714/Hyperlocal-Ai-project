@@ -33,9 +33,10 @@ const __dirname = path.dirname(__filename);
 const app = express();
 
 // Determine allowed origins based on environment
-const allowedOrigins = process.env.NODE_ENV === 'development'
-  ? ["http://localhost:5173"]
-  : ["https://hyperlocal-ai-project.vercel.app"];
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://hyperlocal-ai-project.vercel.app"
+];
 
 // CORS middleware
 app.use(cors({
