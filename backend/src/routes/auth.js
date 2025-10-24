@@ -34,7 +34,7 @@ passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
   callbackURL: process.env.NODE_ENV === 'development'
-    ? 'http://localhost:5000/api/auth/google/callback'
+    ? `${process.env.BACKEND_URL}/api/auth/google/callback`
     : `${process.env.BACKEND_URL}/api/auth/google/callback`
 }, async (accessToken, refreshToken, profile, done) => {
   try {
@@ -405,8 +405,8 @@ router.put('/profile', protect, async (req, res) => {
 
 // Google OAuth Routes
 router.get('/google', (req, res, next) => {
-  // Get frontend URL from query params, fallback to localhost for local dev
-  const frontendUrl = req.query.frontend_url || "http://localhost:5173";
+  // Get frontend URL from query params, fallback to environment variables
+  const frontendUrl = req.query.frontend_url || process.env.FRONTEND_URL;
 
   // Store frontend URL in session for callback (fallback)
   req.session.frontendUrl = frontendUrl;
@@ -417,7 +417,7 @@ router.get('/google', (req, res, next) => {
 // Google OAuth callback
 router.get('/google/callback', passport.authenticate('google', {
   failureRedirect: (req, res) => {
-    const frontendUrl = req.query.state || req.session?.frontendUrl || "http://localhost:5173";
+    const frontendUrl = req.query.state || req.session?.frontendUrl || process.env.FRONTEND_URL;
     const url = `${frontendUrl}/login?error=Google authentication failed`;
     res.redirect(url);
   }
@@ -437,12 +437,12 @@ router.get('/google/callback', passport.authenticate('google', {
       role: user.role
     }));
 
-    const frontendUrl = req.query.state || req.session?.frontendUrl || "http://localhost:5173";
+    const frontendUrl = req.query.state || req.session?.frontendUrl || process.env.FRONTEND_URL;
 
     res.redirect(`${frontendUrl}/login?token=${token}&user=${encodedUser}`);
   } catch (error) {
     console.error('Google OAuth callback error:', error);
-    const frontendUrl = req.query.state || req.session?.frontendUrl || "http://localhost:5173";
+    const frontendUrl = req.query.state || req.session?.frontendUrl || process.env.FRONTEND_URL;
     res.redirect(`${frontendUrl}/login?error=Internal server error`);
   }
 });
