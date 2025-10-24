@@ -284,17 +284,19 @@ export default function UserDashboard() {
                         return;
                       }
                       updateReviewState({ submitting: true, error: "" });
-                      try {
-                        await submitReview(booking._id, { rating: reviewState.rating, comment: reviewState.comment });
-                        toast.success("Review submitted successfully!");
-                        // Refresh bookings to show updated review status
-                        const response = await getUserBookings();
-                        if (Array.isArray(response.data)) {
-                          setBookings(response.data);
-                        }
-                        // Clear review state after successful submission
-                        updateReviewState({ rating: 0, comment: "", submitting: false, error: "" });
-                      } catch (error) {
+                    try {
+                      await submitReview(booking._id, { rating: reviewState.rating, comment: reviewState.comment });
+                      toast.success("Review submitted successfully!");
+                      // Refresh bookings to show updated review status
+                      const response = await getUserBookings(currentPage, pageSize);
+                      if (response.data.bookings && Array.isArray(response.data.bookings)) {
+                        setBookings(response.data.bookings);
+                        setTotalPages(response.data.pagination.totalPages);
+                        setTotalBookings(response.data.pagination.totalBookings);
+                      }
+                      // Clear review state after successful submission
+                      updateReviewState({ rating: 0, comment: "", submitting: false, error: "" });
+                    } catch (error) {
                         updateReviewState({ error: error.response?.data?.message || "Failed to submit review" });
                       } finally {
                         updateReviewState({ submitting: false });

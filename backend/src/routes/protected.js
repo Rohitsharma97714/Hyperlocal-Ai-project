@@ -16,15 +16,34 @@ router.use(protect());
 
 
 // Get user's bookings
-router.get('/bookings', async (req, res) => {
+router.get('/bookings/user', async (req, res) => {
   try {
     const userId = req.user.id;
-    const bookings = await Booking.find({ user: userId })
-      .populate('service', 'name description price')
-      .populate('provider', 'name')
-      .sort({ createdAt: -1 });
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
 
-    res.json({ bookings });
+    const totalBookings = await Booking.countDocuments({ user: userId });
+    const totalPages = Math.ceil(totalBookings / limit);
+
+    const bookings = await Booking.find({ user: userId })
+      .populate('service', 'name description price location')
+      .populate('provider', 'name')
+      .populate('reviews')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    res.json({
+      bookings,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalBookings,
+        hasNext: page < totalPages,
+        hasPrev: page > 1
+      }
+    });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching bookings', error: error.message });
   }
@@ -67,10 +86,61 @@ router.put('/bookings/:id/status', async (req, res) => {
   }
 });
 
-router.get('/search', (req, res) => {
-  const { query } = req.query;
-  // TODO: Implement search logic
-  res.json({ message: `Search results for: ${query}`, results: [] });
+router.get('/search', async (req, res) => {
+  try {
+    const { query, category, location, page = 1, limit = 10 } = req.query;
+
+    if (!query) {
+      return res.status(400).json({ message: 'Search query is required' });
+    }
+
+    let searchQuery = { status: 'approved' };
+
+    // Build search conditions
+    const searchConditions = [
+      { name: new RegExp(query, 'i') },
+      { description: new RegExp(query, 'i') },
+      { category: new RegExp(query, 'i') },
+      { location: new RegExp(query, 'i') }
+    ];
+
+    searchQuery.$or = searchConditions;
+
+    // Add optional filters
+    if (category) {
+      searchQuery.category = new RegExp(category, 'i');
+    }
+    if (location) {
+      searchQuery.location = new RegExp(location, 'i');
+    }
+
+    // Pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    // Execute search
+    const services = await Service.find(searchQuery)
+      .populate('provider', 'name company rating')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    // Get total count for pagination
+    const totalServices = await Service.countDocuments(searchQuery);
+    const totalPages = Math.ceil(totalServices / parseInt(limit));
+
+    res.json({
+      services,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages,
+        totalServices,
+        hasNext: parseInt(page) < totalPages,
+        hasPrev: parseInt(page) > 1
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error performing search', error: error.message });
+  }
 });
 
 export default router;
