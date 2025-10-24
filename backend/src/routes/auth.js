@@ -272,8 +272,11 @@ router.post('/forgot-password', async (req, res) => {
     account.otpExpiry = otpExpiry;
     await account.save();
 
-    // Send OTP email
-    await sendOTPEmail(email, otp);
+    // Send OTP email via queue
+    await addEmailJob('send_otp', {
+      email: email,
+      otp: otp
+    });
 
     res.status(200).json({ message: 'OTP sent to your email for password reset' });
   } catch (error) {
