@@ -70,15 +70,62 @@ passport.use(new GoogleStrategy({
     return done(error, null);
   }
 }));
+
 // ------------------ Registration Routes ------------------
 
 // Helper function to generate OTP
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000);
 const otpExpiryTime = 10 * 60 * 1000; // 10 minutes
 
+// Enhanced email sending with fallback
+const sendOTPWithFallback = async (email, otp) => {
+  try {
+    // Try queue first
+    const queueResult = await addEmailJob('send_otp', {
+      email: email,
+      otp: otp
+    });
+    
+    if (queueResult && queueResult.success) {
+      console.log('✅ OTP sent via queue');
+      return true;
+    }
+    
+    // If queue fails, try direct send
+    console.log('🔄 Queue failed, trying direct email send...');
+    const directResult = await sendOTPEmail(email, otp);
+    
+    if (directResult && directResult.success) {
+      console.log('✅ OTP sent directly');
+      return true;
+    }
+    
+    console.error('❌ Both queue and direct email failed');
+    return false;
+  } catch (error) {
+    console.error('❌ Error in sendOTPWithFallback:', error);
+    
+    // Last resort: try direct send
+    try {
+      console.log('🔄 Attempting direct email as last resort...');
+      const directResult = await sendOTPEmail(email, otp);
+      return directResult && directResult.success;
+    } catch (finalError) {
+      console.error('💥 All email methods failed:', finalError);
+      return false;
+    }
+  }
+};
+
 // Generic registration function
 const registerHandler = (model, roleName) => async (req, res) => {
   const { name, email, password, phone, company } = req.body;
+  
+  // Input validation
+  if (!name || !email || !password) {
+    return res.status(400).json({ message: 'Name, email, and password are required' });
+  }
+
   try {
     let existing = await model.findOne({ email });
 
@@ -91,10 +138,12 @@ const registerHandler = (model, roleName) => async (req, res) => {
         existing.otp = otp;
         existing.otpExpiry = Date.now() + otpExpiryTime;
         await existing.save();
-        await addEmailJob('send_otp', {
-          email: email,
-          otp: otp
-        });
+        
+        const emailSent = await sendOTPWithFallback(email, otp);
+        
+        if (!emailSent) {
+          return res.status(500).json({ message: 'Failed to send OTP. Please try again.' });
+        }
 
         return res.status(200).json({
           message: 'OTP resent to your email. Please verify.',
@@ -113,18 +162,21 @@ const registerHandler = (model, roleName) => async (req, res) => {
 
     const account = await model.create(data);
 
-    await addEmailJob('send_otp', {
-      email: email,
-      otp: otp
-    });
+    const emailSent = await sendOTPWithFallback(email, otp);
+    
+    if (!emailSent) {
+      // Clean up the created account if email fails
+      await model.findByIdAndDelete(account._id);
+      return res.status(500).json({ message: 'Failed to send OTP. Please try again.' });
+    }
 
     res.status(201).json({
       message: 'OTP sent to your email. Verify to complete registration.',
       id: account._id
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Registration error:', error);
+    res.status(500).json({ message: 'Server error during registration' });
   }
 };
 
@@ -136,6 +188,11 @@ router.post('/provider/register', registerHandler(Provider, 'Provider'));
 
 router.post('/verify-otp', async (req, res) => {
   const { role, id, otp } = req.body;
+
+  // Input validation
+  if (!role || !id || !otp) {
+    return res.status(400).json({ message: 'Role, ID, and OTP are required' });
+  }
 
   let model;
   if (role === 'user') model = User;
@@ -162,8 +219,8 @@ router.post('/verify-otp', async (req, res) => {
 
     res.status(200).json({ message: `${role} verified successfully` });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('OTP verification error:', error);
+    res.status(500).json({ message: 'Server error during OTP verification' });
   }
 });
 
@@ -171,6 +228,11 @@ router.post('/verify-otp', async (req, res) => {
 
 router.post('/resend-otp', async (req, res) => {
   const { role, id } = req.body;
+
+  // Input validation
+  if (!role || !id) {
+    return res.status(400).json({ message: 'Role and ID are required' });
+  }
 
   let model;
   if (role === 'user') model = User;
@@ -190,15 +252,16 @@ router.post('/resend-otp', async (req, res) => {
     account.otpExpiry = Date.now() + otpExpiryTime;
     await account.save();
 
-    await addEmailJob('send_otp', {
-      email: account.email,
-      otp: otp
-    });
+    const emailSent = await sendOTPWithFallback(account.email, otp);
+    
+    if (!emailSent) {
+      return res.status(500).json({ message: 'Failed to send OTP. Please try again.' });
+    }
 
     res.status(200).json({ message: 'OTP resent to your email' });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Resend OTP error:', error);
+    res.status(500).json({ message: 'Server error while resending OTP' });
   }
 });
 
@@ -206,6 +269,12 @@ router.post('/resend-otp', async (req, res) => {
 
 const loginHandler = (model, roleName) => async (req, res) => {
   const { email, password } = req.body;
+  
+  // Input validation
+  if (!email || !password) {
+    return res.status(400).json({ message: 'Email and password are required' });
+  }
+
   try {
     const account = await model.findOne({ email });
     if (!account) return res.status(400).json({ message: 'Invalid email or password' });
@@ -238,8 +307,8 @@ const loginHandler = (model, roleName) => async (req, res) => {
 
     res.status(200).json(responseData);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Login error:', error);
+    res.status(500).json({ message: 'Server error during login' });
   }
 };
 
@@ -251,6 +320,11 @@ router.post('/admin/login', loginHandler(Admin, 'admin'));
 
 router.post('/forgot-password', async (req, res) => {
   const { email, role, newPassword } = req.body;
+
+  // Input validation
+  if (!email || !role || !newPassword) {
+    return res.status(400).json({ message: 'Email, role, and new password are required' });
+  }
 
   let model;
   if (role === 'user') model = User;
@@ -272,16 +346,17 @@ router.post('/forgot-password', async (req, res) => {
     account.otpExpiry = otpExpiry;
     await account.save();
 
-    // Send OTP email via queue
-    await addEmailJob('send_otp', {
-      email: email,
-      otp: otp
-    });
+    // Send OTP email with fallback
+    const emailSent = await sendOTPWithFallback(email, otp);
+    
+    if (!emailSent) {
+      return res.status(500).json({ message: 'Failed to send OTP. Please try again.' });
+    }
 
     res.status(200).json({ message: 'OTP sent to your email for password reset' });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Forgot password error:', error);
+    res.status(500).json({ message: 'Server error during password reset' });
   }
 });
 
@@ -289,6 +364,11 @@ router.post('/forgot-password', async (req, res) => {
 
 router.post('/verify-reset-otp', async (req, res) => {
   const { email, role, otp } = req.body;
+
+  // Input validation
+  if (!email || !role || !otp) {
+    return res.status(400).json({ message: 'Email, role, and OTP are required' });
+  }
 
   let model;
   if (role === 'user') model = User;
@@ -312,8 +392,8 @@ router.post('/verify-reset-otp', async (req, res) => {
 
     res.status(200).json({ message: 'Password reset successful' });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Verify reset OTP error:', error);
+    res.status(500).json({ message: 'Server error during password reset verification' });
   }
 });
 
@@ -321,6 +401,11 @@ router.post('/verify-reset-otp', async (req, res) => {
 
 router.post('/reset-password', async (req, res) => {
   const { token, role, email, newPassword } = req.body;
+
+  // Input validation
+  if (!token || !role || !email || !newPassword) {
+    return res.status(400).json({ message: 'Token, role, email, and new password are required' });
+  }
 
   let model;
   if (role === 'user') model = User;
@@ -344,11 +429,10 @@ router.post('/reset-password', async (req, res) => {
 
     res.status(200).json({ message: 'Password reset successful' });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Reset password error:', error);
+    res.status(500).json({ message: 'Server error during password reset' });
   }
 });
-
 
 // ------------------ Update Profile ------------------
 
@@ -384,7 +468,6 @@ router.put('/profile', protect, async (req, res) => {
     await user.save();
 
     // Generate new token with updated info
-    const jwt = require('jsonwebtoken');
     const token = jwt.sign({ id: user._id, role: userRole, serverStartTime: parseInt(process.env.SERVER_START_TIME) }, process.env.JWT_SECRET, { expiresIn: '1d' });
 
     res.status(200).json({
@@ -399,14 +482,13 @@ router.put('/profile', protect, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Profile update error:', error);
+    res.status(500).json({ message: 'Server error during profile update' });
   }
 });
 
 // ------------------ Google OAuth Routes ------------------
 
-// Google OAuth Routes
 router.get('/google', (req, res, next) => {
   // Get frontend URL from query params, fallback to environment variables
   const frontendUrl = req.query.frontend_url || process.env.FRONTEND_URL;
