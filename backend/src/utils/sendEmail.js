@@ -67,14 +67,19 @@ const getTransporter = () => {
       user: process.env.MAIL_USER,
       pass: process.env.MAIL_PASS
     },
-    // Enhanced timeout settings
-    connectionTimeout: 30000,
-    greetingTimeout: 15000,
-    socketTimeout: 45000,
+    // Enhanced timeout settings for better reliability
+    connectionTimeout: 60000, // Increased to 60 seconds
+    greetingTimeout: 30000,  // Increased to 30 seconds
+    socketTimeout: 60000,    // Increased to 60 seconds
     // TLS configuration
     tls: {
-      rejectUnauthorized: false
-    }
+      rejectUnauthorized: false,
+      ciphers: 'SSLv3'
+    },
+    // Additional options for better Gmail compatibility
+    requireTLS: true,
+    opportunisticTLS: true,
+    debug: process.env.NODE_ENV === 'development'
   };
 
   console.log('📧 SMTP Configuration:', {
@@ -106,34 +111,6 @@ const getTransporter = () => {
   return transporter;
 };
 
-// Test email connection function
-export const testEmailConnection = async () => {
-  console.log('🔧 Testing email connection...');
-  
-  if (!validateEnvironment()) {
-    console.error('❌ Environment validation failed');
-    return { success: false, error: 'Environment validation failed' };
-  }
-
-  const transporter = getTransporter();
-  if (!transporter) {
-    console.error('❌ Transporter creation failed');
-    return { success: false, error: 'Transporter creation failed' };
-  }
-
-  return new Promise((resolve) => {
-    transporter.verify((error, success) => {
-      if (error) {
-        console.error('❌ SMTP Connection Test Failed:');
-        console.error('   Error:', error.message);
-        resolve({ success: false, error: error.message });
-      } else {
-        console.log('✅ SMTP Connection Test Successful');
-        resolve({ success: true, message: 'SMTP connection successful' });
-      }
-    });
-  });
-};
 
 export const sendOTPEmail = async (email, otp) => {
   // Validate email before sending
@@ -198,7 +175,7 @@ export const sendOTPEmail = async (email, otp) => {
               </div>
 
               <div style="text-align: center; margin: 40px 0; position: relative; z-index: 1;">
-                <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/register"
+                <a href="${process.env.FRONTEND_URL}/register"
                    style="background: linear-gradient(45deg, #ff6b35, #ff8f65); color: white; padding: 16px 40px; text-decoration: none; border-radius: 50px; font-weight: 700; font-size: 18px; display: inline-block; box-shadow: 0 10px 30px rgba(255, 107, 53, 0.3); transition: all 0.3s ease;">
                   🔐 Complete Registration
                 </a>
@@ -327,7 +304,7 @@ export const sendApprovalEmail = async (email, name, adminNotes) => {
             </div>
             
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/provider/login" 
+              <a href="${process.env.FRONTEND_URL}/provider/login" 
                  style="background-color: #28a745; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
                 Login to Dashboard
               </a>
@@ -466,11 +443,11 @@ export const sendServiceApprovalEmail = async (email, name, serviceName, adminNo
             </div>
 
             <div style="text-align: center; margin: 40px 0; position: relative; z-index: 1;">
-              <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/provider/dashboard"
+              <a href="${process.env.FRONTEND_URL}/provider/dashboard"
                  style="background: linear-gradient(45deg, #ff6b35, #ff8f65); color: white; padding: 16px 40px; text-decoration: none; border-radius: 50px; font-weight: 700; font-size: 18px; display: inline-block; box-shadow: 0 10px 30px rgba(255, 107, 53, 0.3); transition: all 0.3s ease; margin-right: 15px;">
                 🏠 Go to Dashboard
               </a>
-              <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/provider/services"
+              <a href="${process.env.FRONTEND_URL}/provider/services"
                  style="background: linear-gradient(45deg, #28a745, #20c997); color: white; padding: 16px 40px; text-decoration: none; border-radius: 50px; font-weight: 700; font-size: 18px; display: inline-block; box-shadow: 0 10px 30px rgba(40, 167, 69, 0.3); transition: all 0.3s ease;">
                 📋 Manage Services
               </a>
@@ -503,8 +480,8 @@ ${adminNotes ? `📝 Admin Notes: ${adminNotes}\n\n` : ''}🚀 What's Next:
 • Update service details and pricing as needed
 • Receive notifications for new bookings
 
-Go to Dashboard: ${process.env.FRONTEND_URL || 'http://localhost:5173'}/provider/dashboard
-Manage Services: ${process.env.FRONTEND_URL || 'http://localhost:5173'}/provider/services
+Go to Dashboard: ${process.env.FRONTEND_URL}/provider/dashboard
+Manage Services: ${process.env.FRONTEND_URL}/provider/services
 
 Thank you for being part of the Hyperlocal AI community!
 
@@ -600,11 +577,11 @@ export const sendServiceRejectionEmail = async (email, name, serviceName, adminN
             </div>
 
             <div style="text-align: center; margin: 40px 0; position: relative; z-index: 1;">
-              <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/provider/dashboard"
+              <a href="${process.env.FRONTEND_URL}/provider/dashboard"
                  style="background: linear-gradient(45deg, #ff6b35, #ff8f65); color: white; padding: 16px 40px; text-decoration: none; border-radius: 50px; font-weight: 700; font-size: 18px; display: inline-block; box-shadow: 0 10px 30px rgba(255, 107, 53, 0.3); transition: all 0.3s ease; margin-right: 15px;">
                 🏠 Go to Dashboard
               </a>
-              <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/provider/services"
+              <a href="${process.env.FRONTEND_URL}/provider/services"
                  style="background: linear-gradient(45deg, #28a745, #20c997); color: white; padding: 16px 40px; text-decoration: none; border-radius: 50px; font-weight: 700; font-size: 18px; display: inline-block; box-shadow: 0 10px 30px rgba(40, 167, 69, 0.3); transition: all 0.3s ease;">
                 ➕ Add New Service
               </a>
@@ -641,8 +618,8 @@ ${adminNotes ? `📝 Admin Notes: ${adminNotes}\n\n` : ''}🔄 What You Can Do N
 • Set competitive and reasonable pricing
 • Include high-quality service images
 
-Go to Dashboard: ${process.env.FRONTEND_URL || 'http://localhost:5173'}/provider/dashboard
-Add New Service: ${process.env.FRONTEND_URL || 'http://localhost:5173'}/provider/services
+Go to Dashboard: ${process.env.FRONTEND_URL}/provider/dashboard
+Add New Service: ${process.env.FRONTEND_URL}/provider/services
 
 We're here to help you succeed on our platform!
 
@@ -739,7 +716,7 @@ ${providerNotes ? `📝 Provider Notes: ${providerNotes}\n\n` : ''}📅 What's N
 • You'll receive a notification when the service is scheduled
 • Track your booking progress in your dashboard
 
-View your bookings: ${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard
+View your bookings: ${process.env.FRONTEND_URL}/dashboard
 
 Thank you for choosing Hyperlocal AI!
 
@@ -842,7 +819,7 @@ ${providerNotes ? `📝 Provider Notes: ${providerNotes}\n\n` : ''}🔄 What You
 • Browse other available services in your area
 • Book a different time slot or service
 
-Browse services: ${process.env.FRONTEND_URL || 'http://localhost:5173'}/services
+Browse services: ${process.env.FRONTEND_URL}/services
 
 We're sorry for any inconvenience this may have caused.
 
@@ -940,7 +917,7 @@ export const sendBookingScheduledEmail = async (email, name, serviceName, date, 
 • You'll receive updates as the service progresses
 • Contact your provider if you need to reschedule
 
-View your bookings: ${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard
+View your bookings: ${process.env.FRONTEND_URL}/dashboard
 
 Thank you for choosing Hyperlocal AI!
 
@@ -1022,7 +999,7 @@ export const sendBookingInProgressEmail = async (email, name, serviceName) => {
 Your service is now underway! You'll receive a completion notification once the work is finished.
 Feel free to contact your provider directly if you have any questions during the service.
 
-Track progress: ${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard
+Track progress: ${process.env.FRONTEND_URL}/dashboard
 
 Thank you for your patience. We're working hard to complete your service.
 
@@ -1082,11 +1059,11 @@ export const sendBookingCompletedEmail = async (email, name, serviceName, bookin
             </div>
 
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/services"
+              <a href="${process.env.FRONTEND_URL}/services"
                  style="background-color: #28a745; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; margin-right: 10px;">
                 Book Again
               </a>
-              <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard"
+              <a href="${process.env.FRONTEND_URL}/dashboard"
                  style="background-color: #ff6b35; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
                 View Bookings
               </a>
@@ -1114,13 +1091,13 @@ export const sendBookingCompletedEmail = async (email, name, serviceName, bookin
 ⭐ Help Us Improve:
 Your feedback helps us maintain high service quality. Please take a moment to leave a review for your recent service.
 
-Leave a review: ${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard
+Leave a review: ${process.env.FRONTEND_URL}/dashboard
 
 🔄 Book Again:
 Satisfied with the service? Book again or explore other services in your area.
 
-Book again: ${process.env.FRONTEND_URL || 'http://localhost:5173'}/services
-View bookings: ${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard
+Book again: ${process.env.FRONTEND_URL}/services
+View bookings: ${process.env.FRONTEND_URL}/dashboard
 
 Thank you for trusting Hyperlocal AI with your service needs!
 
