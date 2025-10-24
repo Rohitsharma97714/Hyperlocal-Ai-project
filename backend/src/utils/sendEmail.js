@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 let transporter = null;
+let isTransporterReady = false;
+let transporterReadyCallbacks = [];
 
 // Email validation helper
 const validateEmail = (email) => {
@@ -45,8 +47,18 @@ const validateEnvironment = () => {
   return true;
 };
 
+const waitForTransporter = () => {
+  return new Promise((resolve) => {
+    if (isTransporterReady) {
+      resolve(transporter);
+    } else {
+      transporterReadyCallbacks.push(resolve);
+    }
+  });
+};
+
 const getTransporter = () => {
-  if (transporter) {
+  if (transporter && isTransporterReady) {
     return transporter;
   }
 
@@ -102,9 +114,19 @@ const getTransporter = () => {
       console.error('   2. Generate App Password: https://support.google.com/accounts/answer/185833');
       console.error('   3. Use App Password as MAIL_PASS (not regular password)');
       console.error('   4. Check Gmail security settings');
+      isTransporterReady = false;
+      
+      // Notify all waiting callbacks
+      transporterReadyCallbacks.forEach(callback => callback(null));
+      transporterReadyCallbacks = [];
     } else {
       console.log('✅ SMTP connection verified successfully');
       console.log('📧 Email transporter ready for sending');
+      isTransporterReady = true;
+      
+      // Notify all waiting callbacks
+      transporterReadyCallbacks.forEach(callback => callback(transporter));
+      transporterReadyCallbacks = [];
     }
   });
 
@@ -124,8 +146,8 @@ export const sendOTPEmail = async (email, otp) => {
 
   while (attempt < maxRetries) {
     try {
-      const transporter = getTransporter();
-      if (!transporter) {
+      const emailTransporter = await waitForTransporter();
+      if (!emailTransporter) {
         console.error('❌ Email transporter not available. Cannot send OTP email.');
         return { success: false, error: 'Email transporter not available' };
       }
@@ -200,7 +222,7 @@ export const sendOTPEmail = async (email, otp) => {
       };
 
       // Send email
-      const info = await transporter.sendMail(mailOptions);
+      const info = await emailTransporter.sendMail(mailOptions);
       console.log('✅ OTP email sent successfully:', info.response);
       return { success: true, messageId: info.messageId };
     } catch (error) {
@@ -220,8 +242,8 @@ export const sendOTPEmail = async (email, otp) => {
 
 export const sendResetPasswordEmail = async (email, resetUrl) => {
   try {
-    const transporter = getTransporter();
-    if (!transporter) {
+    const emailTransporter = await waitForTransporter();
+    if (!emailTransporter) {
       console.error('Email transporter not available. Cannot send reset password email.');
       return { success: false, error: 'Email transporter not available' };
     }
@@ -258,7 +280,7 @@ export const sendResetPasswordEmail = async (email, resetUrl) => {
     };
 
     // Send email
-    const info = await transporter.sendMail(mailOptions);
+    const info = await emailTransporter.sendMail(mailOptions);
     console.log('Reset password email sent:', info.response);
     return { success: true, messageId: info.messageId };
   } catch (error) {
@@ -269,8 +291,8 @@ export const sendResetPasswordEmail = async (email, resetUrl) => {
 
 export const sendApprovalEmail = async (email, name, adminNotes) => {
   try {
-    const transporter = getTransporter();
-    if (!transporter) {
+    const emailTransporter = await waitForTransporter();
+    if (!emailTransporter) {
       console.error('Email transporter not available. Cannot send approval email.');
       return { success: false, error: 'Email transporter not available' };
     }
@@ -316,7 +338,7 @@ export const sendApprovalEmail = async (email, name, adminNotes) => {
     };
 
     // Send email
-    const info = await transporter.sendMail(mailOptions);
+    const info = await emailTransporter.sendMail(mailOptions);
     console.log('Approval email sent:', info.response);
     return { success: true, messageId: info.messageId };
   } catch (error) {
@@ -327,8 +349,8 @@ export const sendApprovalEmail = async (email, name, adminNotes) => {
 
 export const sendRejectionEmail = async (email, name, adminNotes) => {
   try {
-    const transporter = getTransporter();
-    if (!transporter) {
+    const emailTransporter = await waitForTransporter();
+    if (!emailTransporter) {
       console.error('Email transporter not available. Cannot send rejection email.');
       return { success: false, error: 'Email transporter not available' };
     }
@@ -370,7 +392,7 @@ export const sendRejectionEmail = async (email, name, adminNotes) => {
     };
 
     // Send email
-    const info = await transporter.sendMail(mailOptions);
+    const info = await emailTransporter.sendMail(mailOptions);
     console.log('Rejection email sent:', info.response);
     return { success: true, messageId: info.messageId };
   } catch (error) {
@@ -381,8 +403,8 @@ export const sendRejectionEmail = async (email, name, adminNotes) => {
 
 export const sendServiceApprovalEmail = async (email, name, serviceName, adminNotes) => {
   try {
-    const transporter = getTransporter();
-    if (!transporter) {
+    const emailTransporter = await waitForTransporter();
+    if (!emailTransporter) {
       console.error('Email transporter not available. Cannot send service approval email.');
       return { success: false, error: 'Email transporter not available' };
     }
@@ -491,7 +513,7 @@ support@hyperlocalai.com`
     };
 
     // Send email
-    const info = await transporter.sendMail(mailOptions);
+    const info = await emailTransporter.sendMail(mailOptions);
     console.log('Service approval email sent:', info.response);
     return { success: true, messageId: info.messageId };
   } catch (error) {
@@ -502,8 +524,8 @@ support@hyperlocalai.com`
 
 export const sendServiceRejectionEmail = async (email, name, serviceName, adminNotes) => {
   try {
-    const transporter = getTransporter();
-    if (!transporter) {
+    const emailTransporter = await waitForTransporter();
+    if (!emailTransporter) {
       console.error('Email transporter not available. Cannot send service rejection email.');
       return { success: false, error: 'Email transporter not available' };
     }
@@ -629,7 +651,7 @@ support@hyperlocalai.com`
     };
 
     // Send email
-    const info = await transporter.sendMail(mailOptions);
+    const info = await emailTransporter.sendMail(mailOptions);
     console.log('Service rejection email sent:', info.response);
     return { success: true, messageId: info.messageId };
   } catch (error) {
@@ -646,8 +668,8 @@ export const sendBookingApprovalEmail = async (email, name, serviceName, provide
 
   while (attempt < maxRetries) {
     try {
-      const transporter = getTransporter();
-      if (!transporter) {
+      const emailTransporter = await waitForTransporter();
+      if (!emailTransporter) {
         throw new Error('Email transporter not available. Cannot send booking approval email.');
       }
 
@@ -725,7 +747,7 @@ Hyperlocal AI Team
 support@hyperlocalai.com`
       };
 
-      const info = await transporter.sendMail(mailOptions);
+      const info = await emailTransporter.sendMail(mailOptions);
       console.log('Booking approval email sent:', info.response);
       return { success: true, messageId: info.messageId };
     } catch (error) {
@@ -749,8 +771,8 @@ export const sendBookingRejectionEmail = async (email, name, serviceName, provid
 
   while (attempt < maxRetries) {
     try {
-      const transporter = getTransporter();
-      if (!transporter) {
+      const emailTransporter = await waitForTransporter();
+      if (!emailTransporter) {
         throw new Error('Email transporter not available. Cannot send booking rejection email.');
       }
 
@@ -828,7 +850,7 @@ Hyperlocal AI Team
 support@hyperlocalai.com`
       };
 
-      const info = await transporter.sendMail(mailOptions);
+      const info = await emailTransporter.sendMail(mailOptions);
       console.log('Booking rejection email sent successfully:', info.response);
       return { success: true, messageId: info.messageId };
     } catch (error) {
@@ -848,8 +870,8 @@ support@hyperlocalai.com`
 
 export const sendBookingScheduledEmail = async (email, name, serviceName, date, time) => {
   try {
-    const transporter = getTransporter();
-    if (!transporter) {
+    const emailTransporter = await waitForTransporter();
+    if (!emailTransporter) {
       console.error('Email transporter not available. Cannot send booking scheduled email.');
       return { success: false, error: 'Email transporter not available' };
     }
@@ -926,7 +948,7 @@ Hyperlocal AI Team
 support@hyperlocalai.com`
     };
 
-    const info = await transporter.sendMail(mailOptions);
+    const info = await emailTransporter.sendMail(mailOptions);
     console.log('Booking scheduled email sent:', info.response);
     return { success: true, messageId: info.messageId };
   } catch (error) {
@@ -937,8 +959,8 @@ support@hyperlocalai.com`
 
 export const sendBookingInProgressEmail = async (email, name, serviceName) => {
   try {
-    const transporter = getTransporter();
-    if (!transporter) {
+    const emailTransporter = await waitForTransporter();
+    if (!emailTransporter) {
       console.error('Email transporter not available. Cannot send booking in progress email.');
       return { success: false, error: 'Email transporter not available' };
     }
@@ -1008,7 +1030,7 @@ Hyperlocal AI Team
 support@hyperlocalai.com`
     };
 
-    const info = await transporter.sendMail(mailOptions);
+    const info = await emailTransporter.sendMail(mailOptions);
     console.log('Booking in progress email sent:', info.response);
     return { success: true, messageId: info.messageId };
   } catch (error) {
@@ -1019,8 +1041,8 @@ support@hyperlocalai.com`
 
 export const sendBookingCompletedEmail = async (email, name, serviceName, bookingId) => {
   try {
-    const transporter = getTransporter();
-    if (!transporter) {
+    const emailTransporter = await waitForTransporter();
+    if (!emailTransporter) {
       console.error('Email transporter not available. Cannot send booking completed email.');
       return { success: false, error: 'Email transporter not available' };
     }
@@ -1106,7 +1128,7 @@ Hyperlocal AI Team
 support@hyperlocalai.com`
     };
 
-    const info = await transporter.sendMail(mailOptions);
+    const info = await emailTransporter.sendMail(mailOptions);
     console.log('Booking completed email sent:', info.response);
     return { success: true, messageId: info.messageId };
   } catch (error) {
@@ -1119,8 +1141,8 @@ support@hyperlocalai.com`
 
 export const sendContactEmail = async (name, email, subject, message) => {
   try {
-    const transporter = getTransporter();
-    if (!transporter) {
+    const emailTransporter = await waitForTransporter();
+    if (!emailTransporter) {
       console.error('Email transporter not available. Cannot send contact email.');
       return { success: false, error: 'Email transporter not available' };
     }
@@ -1196,7 +1218,7 @@ Best regards,
 Hyperlocal AI System`
     };
 
-    const info = await transporter.sendMail(mailOptions);
+    const info = await emailTransporter.sendMail(mailOptions);
     console.log('Contact email sent:', info.response);
     return { success: true, messageId: info.messageId };
   } catch (error) {
@@ -1204,3 +1226,6 @@ Hyperlocal AI System`
     return { success: false, error: error.message };
   }
 };
+
+// Initialize transporter on module load
+getTransporter();

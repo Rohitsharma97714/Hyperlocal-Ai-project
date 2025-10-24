@@ -22,14 +22,17 @@ class SimpleQueue {
     this.jobs = [];
     this.isProcessing = false;
     this.processor = null;
+    this.retryDelays = [2000, 5000, 10000]; // Retry delays in ms
     console.log(`✅ ${name} queue initialized`);
   }
 
-  async add(data) {
+  async add(data, options = {}) {
     const job = {
       id: `job-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       data,
-      timestamp: new Date()
+      timestamp: new Date(),
+      attempts: 0,
+      maxAttempts: options.maxAttempts || 3
     };
     
     this.jobs.push(job);
@@ -39,38 +42,58 @@ class SimpleQueue {
       email: data.data?.email 
     });
     
-    // Start processing if not already running
-    this.process();
+    // Start processing with a delay to allow system initialization
+    setTimeout(() => this.process(), 3000);
     
     return job;
   }
 
-  process() {
+  async process() {
     if (this.isProcessing || !this.processor || this.jobs.length === 0) {
       return;
     }
 
     this.isProcessing = true;
+    console.log(`🔄 Starting to process ${this.jobs.length} jobs in ${this.name} queue`);
     
     const processNext = async () => {
       if (this.jobs.length === 0) {
         this.isProcessing = false;
+        console.log(`⏹️ No more jobs in ${this.name} queue`);
         return;
       }
 
-      const job = this.jobs.shift();
-      console.log(`🔄 Processing job ${job.id} in ${this.name} queue`);
+      const job = this.jobs[0]; // Peek at first job
+      console.log(`🔄 Processing job ${job.id} in ${this.name} queue (attempt ${job.attempts + 1})`);
 
       try {
         await this.processor(job);
         console.log(`✅ Job ${job.id} completed successfully`);
+        this.jobs.shift(); // Remove only on success
       } catch (error) {
         console.error(`❌ Job ${job.id} failed:`, error.message);
-        // Retry logic could be added here
+        
+        job.attempts++;
+        
+        if (job.attempts >= job.maxAttempts) {
+          console.error(`💥 Job ${job.id} exceeded max attempts, removing from queue`);
+          this.jobs.shift(); // Remove failed job
+        } else {
+          // Move failed job to end of queue for retry
+          const failedJob = this.jobs.shift();
+          const delay = this.retryDelays[Math.min(job.attempts - 1, this.retryDelays.length - 1)];
+          console.log(`⏰ Retrying job ${job.id} in ${delay}ms (attempt ${job.attempts + 1})`);
+          
+          setTimeout(() => {
+            this.jobs.push(failedJob);
+            this.process();
+          }, delay);
+          return; // Exit current processing loop
+        }
       }
 
       // Process next job after a short delay
-      setTimeout(processNext, 100);
+      setTimeout(processNext, 500);
     };
 
     processNext();
@@ -113,8 +136,14 @@ emailQueue.setProcessor(async (job) => {
   try {
     console.log(`📧 Processing email job: ${type}`, { 
       email: data.email, 
-      type: type 
+      type: type,
+      attempt: job.attempts + 1
     });
+
+    // Wait a bit for system to stabilize (especially for first attempts)
+    if (job.attempts === 0) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
 
     let result;
     switch (type) {
@@ -163,6 +192,12 @@ emailQueue.setProcessor(async (job) => {
     return { success: true, type, data };
   } catch (error) {
     console.error(`❌ Email job failed: ${type}`, error.message);
+    
+    // Special handling for transporter not ready
+    if (error.message.includes('transporter not ready') && job.attempts < 2) {
+      console.log('🔄 Transporter not ready, will retry...');
+    }
+    
     throw error;
   }
 });
@@ -307,6 +342,6 @@ setTimeout(() => {
   testQueueConnection().then(result => {
     console.log('🎯 Simple queue system ready! Booking status emails should now work.');
   });
-}, 500);
+}, 5000);
 
 export { emailQueue, notificationQueue };
